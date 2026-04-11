@@ -20,6 +20,7 @@ public class CombatActorController : MonoBehaviour
     [SerializeField] private CombatHealth health;
     [SerializeField] private CombatMotionController motion;
 
+    private bool roundCombatActive = true;
     private bool hasQueuedDecision;
     private CombatState queuedDecisionState;
     private bool dodgeSucceeded;
@@ -78,6 +79,14 @@ public class CombatActorController : MonoBehaviour
         opponentController = opponent;
     }
 
+    public void SetRoundCombatActive(bool active)
+    {
+        roundCombatActive = active;
+
+        if (!active)
+            hasQueuedDecision = false;
+    }
+
     public void ApplyBuild(PlayerBuild newBuild)
     {
         if (Stats != null)
@@ -108,9 +117,10 @@ public class CombatActorController : MonoBehaviour
     public CombatState ResolutionCombatState => hasQueuedDecision ? queuedDecisionState : CurrentCombatState;
     public bool IsAttackClashWindowActive => Motion != null && Motion.IsAttackClashWindowActive;
     public bool IsDodgeWindowActive => Motion != null && Motion.IsDodging;
-    public bool CanAttemptDecision => !hasQueuedDecision && Motion != null && Motion.CanStartMotion;
+    public bool CanAttemptDecision => roundCombatActive && !hasQueuedDecision && Motion != null && Motion.CanStartMotion;
 
     public CombatActorSide ActorSide => actorSide;
+    public bool RoundCombatActive => roundCombatActive;
     public CombatActorController OpponentController => opponentController;
     public CombatActorStats Stats
     {

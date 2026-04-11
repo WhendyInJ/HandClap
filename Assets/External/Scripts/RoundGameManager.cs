@@ -24,13 +24,13 @@ public class RoundGameManager : MonoBehaviour
     [Header("References")]
     [SerializeField] private SlotController slotController;
     [SerializeField] private BattleUiController battleUiController;
-    [SerializeField] private PlayerController playerController;
-    [SerializeField] private PlayerController enemyController;
+    [SerializeField] private CombatActorController playerController;
+    [SerializeField] private CombatActorController enemyController;
     [SerializeField] private Canvas roundChoiceCanvas;
     [SerializeField] private Canvas canvas_Slot;
 
-    [Header("다음 라운드 대기 UI (선택/슬롯 종료 후 ~ 라운드 시작 전)")]
-    [Tooltip("비우면 이벤트만 발생. 연결 시 남은 초(올림)를 표시합니다.")]
+    [Header("다음 라운드 대기 UI")]
+    [Tooltip("비워두면 이벤트만 발생합니다. 연결된 텍스트가 있으면 남은 시간을 표시합니다.")]
     [SerializeField] private TextMeshProUGUI nextRoundCountdownText;
     [SerializeField] private string countdownTextFormat = "다음 라운드까지 {0}초";
 
@@ -40,26 +40,19 @@ public class RoundGameManager : MonoBehaviour
     [SerializeField] private float rerollAutoCloseDelay = 3f;
     [SerializeField] private float nextRoundDelayAfterSlotClose = 5f;
 
-    [Header("Player Health")]
-    [SerializeField] private float playerMaxHealth = 5f;
-    [SerializeField] private float playerStartHealth = 5f;
-    [SerializeField] private float playerDamagePerEnemyHit = 1f;
-    [SerializeField] private float playerDamageOnQteFail = 1f;
-    [SerializeField] private float healAmountBetweenRounds = 2f;
+    [Header("Player Recovery")]
+    [SerializeField, Range(0f, 1f)] private float failGaugeRecoveryBetweenRounds = 1f;
 
     public event Action<int, float> RoundStarted;
     public event Action<float, float> RoundTimeChanged;
-    public event Action<float, float> PlayerHealthChanged;
     public event Action<RoundGameState> StateChanged;
     public event Action<int, PlayerBuild, float, float> BetweenRoundsChoiceRequested;
-
-    /// <summary>슬롯/선택 후 다음 라운드 진입 대기 중 매 프레임. remaining은 초 단위, duration은 해당 대기 총 길이.</summary>
     public event Action<float, float> NextRoundIntermissionTick;
 
     public RoundGameState State { get; private set; } = RoundGameState.Boot;
     public int CurrentRound { get; private set; }
     public float RoundTimeRemaining { get; private set; }
-    public float PlayerCurrentHealth { get; private set; }
+    public float PlayerFailGaugeNormalized => battleUiController != null ? battleUiController.FailGaugeNormalized : 0f;
     public bool HasCurrentBuild { get; private set; }
     public PlayerBuild CurrentBuild { get; private set; }
 
@@ -74,7 +67,6 @@ public class RoundGameManager : MonoBehaviour
     {
         TryAutoAssignReferences();
         ApplyValidation();
-        PlayerCurrentHealth = Mathf.Clamp(playerStartHealth, 0f, playerMaxHealth);
 
         if (slotController != null && slotController.HasResolvedBuild)
         {
@@ -93,7 +85,6 @@ public class RoundGameManager : MonoBehaviour
         if (slotController != null)
             slotController.SetKeyboardInputEnabled(false);
 
-        NotifyPlayerHealthChanged();
         StartRound(1);
     }
 
@@ -140,7 +131,10 @@ public class RoundGameManager : MonoBehaviour
             return;
 
         SetChoiceCanvasActive(false);
-        HealPlayer(healAmountBetweenRounds);
+
+        if (battleUiController != null)
+            battleUiController.RecoverPlayerFailGauge(failGaugeRecoveryBetweenRounds);
+
         rerollFlowRoutine = StartCoroutine(HealThenIntermissionNextRound());
     }
 
@@ -180,7 +174,12 @@ public class RoundGameManager : MonoBehaviour
             slotController.SetKeyboardInputEnabled(false);
 
         if (battleUiController != null)
+        {
+            if (roundNumber == 1)
+                battleUiController.ResetPlayerFailGauge();
+
             battleUiController.ResetEnemyHealth();
+        }
 
         SetState(RoundGameState.RoundActive);
         ClearIntermissionCountdownDisplay();
@@ -201,8 +200,8 @@ public class RoundGameManager : MonoBehaviour
 
         SetState(RoundGameState.WaitingRoundChoice);
         SetChoiceCanvasActive(true);
-        Debug.Log($"Round {CurrentRound} 종료. 플레이어 선택 대기... (다음 라운드에서 체력 회복 또는 빌드 재뽑기)");
-        BetweenRoundsChoiceRequested?.Invoke(CurrentRound + 1, CurrentBuild, PlayerCurrentHealth, playerMaxHealth);
+        Debug.Log($"Round {CurrentRound} 종료. 플레이어 선택 대기.");
+        BetweenRoundsChoiceRequested?.Invoke(CurrentRound + 1, CurrentBuild, PlayerFailGaugeNormalized, 1f);
     }
 
     void HandleEnemyDefeated()
@@ -230,46 +229,13 @@ public class RoundGameManager : MonoBehaviour
         }
     }
 
-    void HandleCombatEvent(CombatEventData eventData)
-    {
-        if (State != RoundGameState.RoundActive)
-            return;
-
-        if (eventData.Kind != CombatEventKind.AttackHit)
-            return;
-
-        if (eventData.Actor == enemyController && eventData.Opponent == playerController)
-            ApplyPlayerDamage(playerDamagePerEnemyHit);
-    }
-
     void HandlePlayerQteEnded(QteEndReason endReason)
     {
         if (State != RoundGameState.RoundActive)
             return;
 
         if (endReason == QteEndReason.Fail)
-            ApplyPlayerDamage(playerDamageOnQteFail);
-    }
-
-    void ApplyPlayerDamage(float damage)
-    {
-        if (damage <= 0f)
-            return;
-
-        PlayerCurrentHealth = Mathf.Clamp(PlayerCurrentHealth - damage, 0f, playerMaxHealth);
-        NotifyPlayerHealthChanged();
-
-        if (PlayerCurrentHealth <= 0f)
             LoseGame();
-    }
-
-    void HealPlayer(float amount)
-    {
-        if (amount <= 0f)
-            return;
-
-        PlayerCurrentHealth = Mathf.Clamp(PlayerCurrentHealth + amount, 0f, playerMaxHealth);
-        NotifyPlayerHealthChanged();
     }
 
     void AdvanceToNextRound()
@@ -319,11 +285,6 @@ public class RoundGameManager : MonoBehaviour
             battleUiController.StopPlayerQte(QteEndReason.Success);
     }
 
-    void NotifyPlayerHealthChanged()
-    {
-        PlayerHealthChanged?.Invoke(PlayerCurrentHealth, playerMaxHealth);
-    }
-
     void SubscribeEvents()
     {
         if (slotController != null)
@@ -334,12 +295,6 @@ public class RoundGameManager : MonoBehaviour
             battleUiController.EnemyDefeated += HandleEnemyDefeated;
             battleUiController.PlayerQteEnded += HandlePlayerQteEnded;
         }
-
-        if (playerController != null)
-            playerController.CombatEventRaised += HandleCombatEvent;
-
-        if (enemyController != null && enemyController != playerController)
-            enemyController.CombatEventRaised += HandleCombatEvent;
     }
 
     void UnsubscribeEvents()
@@ -352,21 +307,15 @@ public class RoundGameManager : MonoBehaviour
             battleUiController.EnemyDefeated -= HandleEnemyDefeated;
             battleUiController.PlayerQteEnded -= HandlePlayerQteEnded;
         }
-
-        if (playerController != null)
-            playerController.CombatEventRaised -= HandleCombatEvent;
-
-        if (enemyController != null && enemyController != playerController)
-            enemyController.CombatEventRaised -= HandleCombatEvent;
     }
 
     void TryAutoAssignReferences()
     {
         if (slotController == null)
-            slotController = FindObjectOfType<SlotController>();
+            slotController = FindFirstObjectByType<SlotController>();
 
         if (battleUiController == null)
-            battleUiController = FindObjectOfType<BattleUiController>();
+            battleUiController = FindFirstObjectByType<BattleUiController>();
 
         if (roundChoiceCanvas == null)
             roundChoiceCanvas = FindCanvasByName("Canvas_Choice");
@@ -377,10 +326,19 @@ public class RoundGameManager : MonoBehaviour
         if (playerController != null && enemyController != null)
             return;
 
-        PlayerController[] controllers = FindObjectsOfType<PlayerController>();
+        if (playerController == null)
+            playerController = FindPlayerController();
+
+        if (enemyController == null)
+            enemyController = FindEnemyController();
+
+        if (playerController != null && enemyController != null)
+            return;
+
+        CombatActorController[] controllers = FindObjectsByType<CombatActorController>(FindObjectsSortMode.None);
         for (int i = 0; i < controllers.Length; i++)
         {
-            PlayerController controller = controllers[i];
+            CombatActorController controller = controllers[i];
             if (controller == null)
                 continue;
 
@@ -394,17 +352,39 @@ public class RoundGameManager : MonoBehaviour
             enemyController = playerController.OpponentController;
     }
 
+    CombatActorController FindPlayerController()
+    {
+        PlayerController[] players = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
+        for (int i = 0; i < players.Length; i++)
+        {
+            PlayerController player = players[i];
+            if (player != null && !player.TryGetComponent<EnemyController>(out _))
+                return player;
+        }
+
+        return null;
+    }
+
+    CombatActorController FindEnemyController()
+    {
+        EnemyController[] enemies = FindObjectsByType<EnemyController>(FindObjectsSortMode.None);
+        for (int i = 0; i < enemies.Length; i++)
+        {
+            EnemyController enemy = enemies[i];
+            if (enemy != null && enemy.ActorController != null)
+                return enemy.ActorController;
+        }
+
+        return null;
+    }
+
     void ApplyValidation()
     {
         roundDurationSeconds = Mathf.Max(1f, roundDurationSeconds);
         totalRounds = Mathf.Max(1, totalRounds);
         rerollAutoCloseDelay = Mathf.Max(0f, rerollAutoCloseDelay);
         nextRoundDelayAfterSlotClose = Mathf.Max(0f, nextRoundDelayAfterSlotClose);
-        playerMaxHealth = Mathf.Max(1f, playerMaxHealth);
-        playerStartHealth = Mathf.Clamp(playerStartHealth, 0f, playerMaxHealth);
-        playerDamagePerEnemyHit = Mathf.Max(0f, playerDamagePerEnemyHit);
-        playerDamageOnQteFail = Mathf.Max(0f, playerDamageOnQteFail);
-        healAmountBetweenRounds = Mathf.Max(0f, healAmountBetweenRounds);
+        failGaugeRecoveryBetweenRounds = Mathf.Clamp01(failGaugeRecoveryBetweenRounds);
     }
 
     IEnumerator HealThenIntermissionNextRound()
@@ -498,7 +478,7 @@ public class RoundGameManager : MonoBehaviour
 
     static Canvas FindCanvasByName(string canvasName)
     {
-        Canvas[] canvases = FindObjectsOfType<Canvas>(true);
+        Canvas[] canvases = FindObjectsByType<Canvas>(FindObjectsInactive.Include, FindObjectsSortMode.None);
         for (int i = 0; i < canvases.Length; i++)
         {
             if (canvases[i] != null && canvases[i].name == canvasName)
