@@ -1,5 +1,7 @@
 using UnityEngine;
+using System;
 using System.Collections;
+using Random = UnityEngine.Random;
 
 public class SlotController : MonoBehaviour
 {
@@ -7,13 +9,9 @@ public class SlotController : MonoBehaviour
     public Reel reelBody;
     public Reel reelHand;
 
-    [SerializeField] private CombatActorStats targetStats;
-
     [Tooltip("마지막 릴(Hand) 정지가 끝난 뒤 Space로 다시 돌릴 수 있을 때까지 대기(초).")]
     public float inputCooldownAfterStop = 1f;
     [SerializeField] float delayBetweenReelStops = 0.35f;
-
-    public event System.Action<PlayerBuild> BuildResolved;
 
     enum Phase
     {
@@ -27,22 +25,24 @@ public class SlotController : MonoBehaviour
     Phase phase = Phase.Idle;
 
     PlayerBuild pendingBuild;
+    PlayerBuild currentBuild;
     int pendingSlotElement;
     int pendingSlotBody;
     int pendingSlotHand;
+    bool hasResolvedBuild;
+    bool keyboardInputEnabled = true;
 
-    void Reset()
-    {
-        TryAutoAssignTargetStats();
-    }
+    public event Action<PlayerBuild> BuildResolved;
 
-    void Awake()
-    {
-        TryAutoAssignTargetStats();
-    }
+    public bool HasResolvedBuild => hasResolvedBuild;
+    public bool IsBusy => phase != Phase.Idle;
+    public PlayerBuild CurrentBuild => currentBuild;
 
     void Update()
     {
+        if (!keyboardInputEnabled)
+            return;
+
         if (!Input.GetKeyDown(KeyCode.Space))
             return;
 
@@ -58,6 +58,11 @@ public class SlotController : MonoBehaviour
             default:
                 break;
         }
+    }
+
+    public void SetKeyboardInputEnabled(bool isEnabled)
+    {
+        keyboardInputEnabled = isEnabled;
     }
 
     void BeginSpinPhase()
@@ -82,6 +87,23 @@ public class SlotController : MonoBehaviour
         Debug.Log("🎰 슬롯 시작 — Space를 다시 눌러 릴을 멈춥니다.");
     }
 
+    public bool TryBeginManualReroll()
+    {
+        if (phase != Phase.Idle)
+            return false;
+
+        BeginSpinPhase();
+        return true;
+    }
+
+    public void AutoReroll(float previewDuration = 0.9f)
+    {
+        if (phase != Phase.Idle)
+            return;
+
+        StartCoroutine(AutoRerollRoutine(previewDuration));
+    }
+
     IEnumerator ResolveSpinCoroutine()
     {
         yield return StartCoroutine(reelElement.CoStop(pendingSlotElement));
@@ -96,38 +118,24 @@ public class SlotController : MonoBehaviour
             $"결과 → Element: {pendingBuild.Element} (릴인덱스 {pendingSlotElement}), " +
             $"Body: {pendingBuild.BodyType} ({pendingSlotBody}), Hand: {pendingBuild.HandSize} ({pendingSlotHand})");
 
-        ApplyPendingBuild();
+        currentBuild = pendingBuild;
+        hasResolvedBuild = true;
+        BuildResolved?.Invoke(currentBuild);
 
         yield return new WaitForSeconds(inputCooldownAfterStop);
 
         phase = Phase.Idle;
     }
 
-    void ApplyPendingBuild()
+    IEnumerator AutoRerollRoutine(float previewDuration)
     {
-        if (targetStats == null)
-            TryAutoAssignTargetStats();
+        BeginSpinPhase();
+        yield return new WaitForSeconds(Mathf.Max(0f, previewDuration));
 
-        if (targetStats != null)
-            targetStats.ApplyBuild(pendingBuild);
+        if (phase != Phase.AwaitingCommit)
+            yield break;
 
-        BuildResolved?.Invoke(pendingBuild);
-    }
-
-    void TryAutoAssignTargetStats()
-    {
-        if (targetStats != null)
-            return;
-
-        CombatActorController[] controllers = FindObjectsByType<CombatActorController>(FindObjectsSortMode.None);
-        for (int i = 0; i < controllers.Length; i++)
-        {
-            CombatActorController controller = controllers[i];
-            if (controller != null && controller.ActorSide == CombatActorSide.Player)
-            {
-                targetStats = controller.Stats;
-                return;
-            }
-        }
+        phase = Phase.Resolving;
+        yield return StartCoroutine(ResolveSpinCoroutine());
     }
 }
