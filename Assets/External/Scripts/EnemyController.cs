@@ -57,7 +57,10 @@ public class EnemyController : MonoBehaviour
 
     void Update()
     {
-        if (!enableAi || motionController == null || !motionController.CanAttemptDecision)
+        if (!enableAi || motionController == null || !motionController.RoundCombatActive)
+            return;
+
+        if (!motionController.CanAttemptDecision)
             return;
 
         nextDecisionDelay -= Time.deltaTime;

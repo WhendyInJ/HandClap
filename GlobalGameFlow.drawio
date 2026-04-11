@@ -1,0 +1,223 @@
+<mxfile host="app.diagrams.net" modified="2026-04-10T00:00:00.000Z" agent="Cursor" version="22.0.0" type="device">
+  <diagram name="전체 플로우" id="global-flow">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" page="1" pageScale="1" pageWidth="1600" pageHeight="2200" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="lane1" value="전역 게임 루프" style="swimlane;startSize=28;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="520" height="1180" as="geometry"/>
+        </mxCell>
+        <mxCell id="n1" value="타이틀" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="lane1">
+          <mxGeometry x="180" y="50" width="160" height="44" as="geometry"/>
+        </mxCell>
+        <mxCell id="n2" value="게임 시작&lt;br&gt;3종 적 중 첫 번째 적과 대조" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="lane1">
+          <mxGeometry x="160" y="120" width="200" height="56" as="geometry"/>
+        </mxCell>
+        <mxCell id="n3" value="라운드 준비&lt;br&gt;손 크기·몸집·속성 부여" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="lane1">
+          <mxGeometry x="160" y="200" width="200" height="56" as="geometry"/>
+        </mxCell>
+        <mxCell id="n4" value="라운드 진행 (30초)&lt;br&gt;실시간 전투 (공격/회피/중립)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="lane1">
+          <mxGeometry x="150" y="280" width="220" height="64" as="geometry"/>
+        </mxCell>
+        <mxCell id="n5" value="라운드 종료 판정" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="lane1">
+          <mxGeometry x="170" y="380" width="180" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n6" value="적 체력 = 0&lt;br&gt;스테이지 클리어" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="lane1">
+          <mxGeometry x="40" y="520" width="160" height="56" as="geometry"/>
+        </mxCell>
+        <mxCell id="n7" value="밸런스 유지 실패&lt;br&gt;패배" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="lane1">
+          <mxGeometry x="360" y="500" width="140" height="56" as="geometry"/>
+        </mxCell>
+        <mxCell id="n8" value="3라운드 내 적 제압 실패&lt;br&gt;패배" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="lane1">
+          <mxGeometry x="360" y="580" width="140" height="56" as="geometry"/>
+        </mxCell>
+        <mxCell id="n9" value="무승부&lt;br&gt;(제한 시간 초과 등)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="lane1">
+          <mxGeometry x="360" y="660" width="140" height="56" as="geometry"/>
+        </mxCell>
+        <mxCell id="n10" value="다음 적 또는&lt;br&gt;최종 승리?" style="rhombus;whiteSpace=wrap;html=1;" vertex="1" parent="lane1">
+          <mxGeometry x="30" y="620" width="180" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="n11" value="최종 승리" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;" vertex="1" parent="lane1">
+          <mxGeometry x="40" y="750" width="120" height="44" as="geometry"/>
+        </mxCell>
+        <mxCell id="n12" value="휴식 (Rest)&lt;br&gt;물 또는 상태 변경 선택" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="lane1">
+          <mxGeometry x="160" y="840" width="200" height="56" as="geometry"/>
+        </mxCell>
+        <mxCell id="n13" value="다음 라운드&lt;br&gt;(변경된 상태)" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="lane1">
+          <mxGeometry x="170" y="930" width="180" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="n14" value="게임 오버" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#666666;fontColor=#ffffff;strokeColor=#333333;" vertex="1" parent="lane1">
+          <mxGeometry x="380" y="760" width="100" height="44" as="geometry"/>
+        </mxCell>
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="lane1" source="n1" target="n2">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="lane1" source="n2" target="n3">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="lane1" source="n3" target="n4">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="lane1" source="n4" target="n5">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e5" value="클리어" style="edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="lane1" source="n5" target="n6">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e6" value="밸런스 실패" style="edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=1;exitY=0.35;entryX=0;entryY=0.5;" edge="1" parent="lane1" source="n5" target="n7">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e7" value="3R 제압 실패" style="edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=1;exitY=0.55;entryX=0;entryY=0.5;" edge="1" parent="lane1" source="n5" target="n8">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e8" value="무승부" style="edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=1;exitY=0.75;entryX=0;entryY=0.5;" edge="1" parent="lane1" source="n5" target="n9">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="lane1" source="n6" target="n10">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e10" value="최종" style="edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="lane1" source="n10" target="n11">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e11" value="다음 적" style="edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="lane1" source="n10" target="n12">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="260" y="730"/>
+              <mxPoint x="260" y="800"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="lane1" source="n12" target="n13">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e13" style="edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0;exitY=0.5;entryX=0.5;entryY=0;" edge="1" parent="lane1" source="n13" target="n3">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="20" y="955"/>
+              <mxPoint x="20" y="228"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="lane1" source="n7" target="n14">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e15" style="edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="lane1" source="n8" target="n14">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="lane2" value="밸런스 바 생존" style="swimlane;startSize=28;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="600" y="40" width="480" height="700" as="geometry"/>
+        </mxCell>
+        <mxCell id="b1" value="이벤트&lt;br&gt;플레이어 피격 또는&lt;br&gt;회피 실패 패널티" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="lane2">
+          <mxGeometry x="140" y="50" width="200" height="64" as="geometry"/>
+        </mxCell>
+        <mxCell id="b2" value="기준선 흔들림&lt;br&gt;(안정 범위 이탈·무작위 이동)" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="lane2">
+          <mxGeometry x="140" y="140" width="200" height="56" as="geometry"/>
+        </mxCell>
+        <mxCell id="b3" value="플레이어 조작 (A/D)&lt;br&gt;안정 범위 이동 → 기준선 추적" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="lane2">
+          <mxGeometry x="130" y="220" width="220" height="56" as="geometry"/>
+        </mxCell>
+        <mxCell id="b4" value="기준선이&lt;br&gt;안정 범위 내?" style="rhombus;whiteSpace=wrap;html=1;" vertex="1" parent="lane2">
+          <mxGeometry x="150" y="300" width="180" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="b5" value="타이머 초기화&lt;br&gt;생존 유지·전투 복귀" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="lane2">
+          <mxGeometry x="280" y="420" width="160" height="56" as="geometry"/>
+        </mxCell>
+        <mxCell id="b6" value="패배 타이머 작동" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="lane2">
+          <mxGeometry x="40" y="420" width="140" height="44" as="geometry"/>
+        </mxCell>
+        <mxCell id="b7" value="타이머 종료 전&lt;br&gt;복구 성공?" style="rhombus;whiteSpace=wrap;html=1;" vertex="1" parent="lane2">
+          <mxGeometry x="20" y="500" width="160" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="b8" value="전투 복귀" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="lane2">
+          <mxGeometry x="240" y="520" width="100" height="44" as="geometry"/>
+        </mxCell>
+        <mxCell id="b9" value="게임 종료 (패배)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#666666;fontColor=#ffffff;strokeColor=#333333;" vertex="1" parent="lane2">
+          <mxGeometry x="40" y="620" width="140" height="44" as="geometry"/>
+        </mxCell>
+        <mxCell id="eb1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="lane2" source="b1" target="b2">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="eb2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="lane2" source="b2" target="b3">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="eb3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="lane2" source="b3" target="b4">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="eb4" value="예" style="edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=1;exitY=0.5;entryX=0.5;entryY=0;" edge="1" parent="lane2" source="b4" target="b5">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="eb5" value="아니오" style="edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0;exitY=0.5;entryX=0.5;entryY=0;" edge="1" parent="lane2" source="b4" target="b6">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="eb6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="lane2" source="b6" target="b7">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="eb7" value="예" style="edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="lane2" source="b7" target="b8">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="eb8" value="아니오" style="edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.5;exitY=1;" edge="1" parent="lane2" source="b7" target="b9">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="lane3" value="[B] 적 공격 시 플레이어 회피" style="swimlane;startSize=28;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1120" y="40" width="400" height="380" as="geometry"/>
+        </mxCell>
+        <mxCell id="c1" value="적 공격 신호" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="lane3">
+          <mxGeometry x="120" y="50" width="160" height="44" as="geometry"/>
+        </mxCell>
+        <mxCell id="c2" value="공격 시전 모션에 맞춰&lt;br&gt;회피 입력" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="lane3">
+          <mxGeometry x="110" y="120" width="180" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="c3" value="회피 성공?" style="rhombus;whiteSpace=wrap;html=1;" vertex="1" parent="lane3">
+          <mxGeometry x="130" y="200" width="140" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="c4" value="적 취약 2초&lt;br&gt;받는 피해 ×1.5" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="lane3">
+          <mxGeometry x="220" y="300" width="160" height="56" as="geometry"/>
+        </mxCell>
+        <mxCell id="c5" value="실패 분기&lt;br&gt;(미정/패널티)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;" vertex="1" parent="lane3">
+          <mxGeometry x="20" y="300" width="120" height="56" as="geometry"/>
+        </mxCell>
+        <mxCell id="ec1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="lane3" source="c1" target="c2">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ec2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="lane3" source="c2" target="c3">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ec3" value="성공" style="edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=1;exitY=0.5;entryX=0.5;entryY=0;" edge="1" parent="lane3" source="c3" target="c4">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ec4" value="실패" style="edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0;exitY=0.5;entryX=0.5;entryY=0;" edge="1" parent="lane3" source="c3" target="c5">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="note1" value="라운드 루프: 30초 전투 → 종료 판정 반복. 밸런스·회피는 전투 중 병행. [A] 플레이어 공격(적 회피)은 미정으로 별도 추가 가능." style="shape=note;whiteSpace=wrap;html=1;size=14;fillColor=#ffffc0;strokeColor=#ff9900;align=left;spacingLeft=6;" vertex="1" parent="1">
+          <mxGeometry x="600" y="780" width="400" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="cross1" value="(전투 중)" style="edgeStyle=orthogonalEdgeStyle;dashed=1;endArrow=open;" edge="1" parent="1" source="n4" target="b1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="580" y="352"/>
+              <mxPoint x="580" y="120"/>
+              <mxPoint x="740" y="120"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="cross2" value="(전투 중)" style="edgeStyle=orthogonalEdgeStyle;dashed=1;endArrow=open;" edge="1" parent="1" source="n4" target="c1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="560" y="340"/>
+              <mxPoint x="560" y="80"/>
+              <mxPoint x="1320" y="80"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="cross3" value="밸런스 실패" style="edgeStyle=orthogonalEdgeStyle;dashed=1;endArrow=classic;" edge="1" parent="1" source="b9" target="n7">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="540" y="720"/>
+              <mxPoint x="540" y="528"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

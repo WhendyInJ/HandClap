@@ -3,6 +3,10 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+#if UNITY_EDITOR
+using UnityEditor;
+using UnityEditor.SceneManagement;
+#endif
 
 [DefaultExecutionOrder(-50)]
 public class Reel : MonoBehaviour
@@ -75,9 +79,29 @@ public class Reel : MonoBehaviour
     bool runtimeStripBuilt;
     bool spinning;
 
+#if UNITY_EDITOR
+    bool editorRebuildQueued;
+#endif
+
     float CycleHeight => itemCount * slotSpacing;
     float TotalStripHeight => CycleHeight * 3f;
     float WrapMinY => SlotYForIndex(itemCount - 1) - CycleHeight - slotSpacing;
+
+    static readonly HideFlags GeneratedHideFlags =
+        HideFlags.HideInHierarchy | HideFlags.DontSaveInEditor;
+
+#if UNITY_EDITOR
+    bool CanModifyReelHierarchyInEditor()
+    {
+        if (Application.isPlaying)
+            return true;
+
+        if (!PrefabUtility.IsPartOfPrefabAsset(gameObject))
+            return true;
+
+        return PrefabStageUtility.GetPrefabStage(gameObject) != null;
+    }
+#endif
 
     void Awake()
     {
@@ -100,6 +124,11 @@ public class Reel : MonoBehaviour
         spinning = false;
         runtimeStripBuilt = false;
         runtimeCells.Clear();
+
+#if UNITY_EDITOR
+        EditorApplication.delayCall -= RunQueuedEditorRebuild;
+        editorRebuildQueued = false;
+#endif
     }
 
     void OnValidate()
@@ -111,9 +140,39 @@ public class Reel : MonoBehaviour
         stopSpeedMultiplier = Mathf.Max(1f, stopSpeedMultiplier);
         SyncItemCount();
 
-        if (!Application.isPlaying)
-            RebuildEditorPreview();
+#if UNITY_EDITOR
+        if (!Application.isPlaying && CanModifyReelHierarchyInEditor())
+            QueueEditorRebuildAfterValidate();
+#endif
     }
+
+#if UNITY_EDITOR
+    void QueueEditorRebuildAfterValidate()
+    {
+        if (editorRebuildQueued)
+            return;
+
+        editorRebuildQueued = true;
+        EditorApplication.delayCall += RunQueuedEditorRebuild;
+    }
+
+    void RunQueuedEditorRebuild()
+    {
+        EditorApplication.delayCall -= RunQueuedEditorRebuild;
+        editorRebuildQueued = false;
+
+        if (this == null || gameObject == null)
+            return;
+
+        if (Application.isPlaying)
+            return;
+
+        if (!CanModifyReelHierarchyInEditor())
+            return;
+
+        RebuildEditorPreview();
+    }
+#endif
 
     [ContextMenu("Layout Items Now")]
     public void LayoutItemsNow()
@@ -281,6 +340,10 @@ public class Reel : MonoBehaviour
 
     void RebuildEditorPreview()
     {
+#if UNITY_EDITOR
+        if (!Application.isPlaying && !CanModifyReelHierarchyInEditor())
+            return;
+#endif
         SyncItemCount();
         EnsureGeneratedRoot();
         RebuildLogicalItems();
@@ -309,6 +372,7 @@ public class Reel : MonoBehaviour
     RectTransform CreateLogicalItem(int index, ReelItemDefinition definition)
     {
         GameObject go = new GameObject($"{LogicalItemPrefix}{index}", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        go.hideFlags = GeneratedHideFlags;
         RectTransform rect = (RectTransform)go.transform;
         rect.SetParent(generatedRoot, false);
         rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0.5f, 0.5f);
@@ -329,7 +393,16 @@ public class Reel : MonoBehaviour
             return;
 
         for (int i = generatedRoot.childCount - 1; i >= 0; i--)
-            DestroyChildImmediate(generatedRoot.GetChild(i).gameObject);
+        {
+            GameObject child = generatedRoot.GetChild(i).gameObject;
+            if (child == null)
+                continue;
+
+            if (Application.isPlaying)
+                Destroy(child);
+            else
+                DestroyImmediate(child);
+        }
     }
 
     void EnsureGeneratedRoot()
@@ -347,6 +420,7 @@ public class Reel : MonoBehaviour
         }
 
         GameObject root = new GameObject(GeneratedRootName, typeof(RectTransform));
+        root.hideFlags = GeneratedHideFlags;
         generatedRoot = (RectTransform)root.transform;
         generatedRoot.SetParent(content, false);
         generatedRoot.anchorMin = generatedRoot.anchorMax = generatedRoot.pivot = new Vector2(0.5f, 0.5f);
@@ -361,6 +435,7 @@ public class Reel : MonoBehaviour
             RectTransform source = logicalItems[i];
             GameObject clone = Instantiate(source.gameObject, generatedRoot);
             clone.name = RuntimeClonePrefix + (bundleOffset > 0 ? "Above_" : "Below_") + i;
+            clone.hideFlags = GeneratedHideFlags;
 
             RectTransform rect = (RectTransform)clone.transform;
             runtimeCells.Add(new RuntimeCell { rect = rect, logicalIndex = i, bundleOffset = bundleOffset });
@@ -512,11 +587,4 @@ public class Reel : MonoBehaviour
         }
     }
 
-    void DestroyChildImmediate(GameObject go)
-    {
-        if (go == null)
-            return;
-
-        DestroyImmediate(go);
-    }
 }
