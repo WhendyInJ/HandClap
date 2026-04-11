@@ -25,6 +25,7 @@ public class RoundGameManager : MonoBehaviour
     [Header("References")]
     [SerializeField] private SlotController slotController;
     [SerializeField] private BattleUiController battleUiController;
+    [SerializeField] private ClashTugMinigameController clashTugMinigameController;
     [SerializeField] private CombatActorController playerController;
     [SerializeField] private CombatActorController enemyController;
     [SerializeField] private Canvas roundChoiceCanvas;
@@ -59,7 +60,11 @@ public class RoundGameManager : MonoBehaviour
     public RoundGameState State { get; private set; } = RoundGameState.Boot;
     public int CurrentRound { get; private set; }
     public float RoundTimeRemaining { get; private set; }
-    public float PlayerFailGaugeNormalized => battleUiController != null ? battleUiController.FailGaugeNormalized : 0f;
+    /// <summary>
+    /// 라운드 간 UI 표시용 플레이어 체력 (MaxHP 상한선 기준).
+    /// QTE 드레인 게이지가 아닌 영구 MaxHP 값을 사용한다.
+    /// </summary>
+    public float PlayerFailGaugeNormalized => battleUiController != null ? battleUiController.PlayerMaxHpNormalized : 0f;
     public bool HasCurrentBuild { get; private set; }
     public PlayerBuild CurrentBuild { get; private set; }
 
@@ -388,6 +393,9 @@ public class RoundGameManager : MonoBehaviour
 
         if (!active && battleUiController != null)
             battleUiController.StopPlayerQte(QteEndReason.Success);
+
+        if (!active && clashTugMinigameController != null)
+            clashTugMinigameController.StopMinigame(ClashMinigameResult.Interrupted);
     }
 
     void SubscribeEvents()
@@ -422,6 +430,9 @@ public class RoundGameManager : MonoBehaviour
         if (battleUiController == null)
             battleUiController = FindFirstObjectByType<BattleUiController>();
 
+        if (clashTugMinigameController == null)
+            clashTugMinigameController = FindFirstObjectByType<ClashTugMinigameController>();
+
         if (roundChoiceCanvas == null)
             roundChoiceCanvas = FindCanvasByName("Canvas_Choice");
 
@@ -429,7 +440,10 @@ public class RoundGameManager : MonoBehaviour
             canvas_Slot = FindCanvasByName("Canvas_Slot");
 
         if (playerController != null && enemyController != null)
+        {
+            EnsureClashMinigameController();
             return;
+        }
 
         if (playerController == null)
             playerController = FindPlayerController();
@@ -438,7 +452,10 @@ public class RoundGameManager : MonoBehaviour
             enemyController = FindEnemyController();
 
         if (playerController != null && enemyController != null)
+        {
+            EnsureClashMinigameController();
             return;
+        }
 
         CombatActorController[] controllers = FindObjectsByType<CombatActorController>(FindObjectsSortMode.None);
         for (int i = 0; i < controllers.Length; i++)
@@ -455,6 +472,19 @@ public class RoundGameManager : MonoBehaviour
 
         if (playerController != null && enemyController == null)
             enemyController = playerController.OpponentController;
+
+        EnsureClashMinigameController();
+    }
+
+    void EnsureClashMinigameController()
+    {
+        if (clashTugMinigameController == null)
+            return;
+
+        if (battleUiController != null)
+            clashTugMinigameController.SetBattleUiController(battleUiController);
+
+        clashTugMinigameController.SetCombatActors(playerController, enemyController);
     }
 
     CombatActorController FindPlayerController()

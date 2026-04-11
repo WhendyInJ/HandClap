@@ -3,8 +3,15 @@ public enum CombatEventKind
     AttackHit,
     AttackClashed,
     AttackDodged,
+    AttackFeinted,
     DodgeSucceeded,
     DodgeFailed,
+
+    /// <summary>
+    /// 상대가 페인트(페이크/페인트 모션) 중일 때 공격이 적중.
+    /// 페인트 동작을 읽고 반격에 성공한 경우에 발생한다.
+    /// </summary>
+    FeintPunished,
 }
 
 public readonly struct CombatEventData
