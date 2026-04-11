@@ -12,9 +12,9 @@ using UnityEngine;
 /// 5. 제한 시간 안에 중앙 복구 게이지를 100까지 채우면 성공한다.
 ///
 /// 이번 수정의 핵심:
-/// - UI가 정한 SafeZone 시작 폭을 논리 SafeZone 시작 비율로 동기화할 수 있다.
-/// - UI가 정한 BalanceLine 실제 반폭을 논리 edge padding 으로 동기화할 수 있다.
-/// - 따라서 로직 판정과 실제 화면상의 비주얼 이동 범위를 최대한 일치시킨다.
+/// - SafeZone 의 논리 크기 기준을 UI 쪽 디자인 폭과 동기화할 수 있도록 확장했다.
+/// - UI 가 "내가 원하는 시작 폭"을 넘기면, 컨트롤러도 그 비율을 시작 SafeZone 크기로 사용한다.
+/// - 그래서 비주얼 크기와 실제 판정 크기가 서로 어긋나는 문제를 줄인다.
 /// </summary>
 public class HandClap_BalanceMinigameController : MonoBehaviour
 {
@@ -41,7 +41,7 @@ public class HandClap_BalanceMinigameController : MonoBehaviour
     /// <summary>
     /// 미니게임 시작 시 SafeZone 의 초기 길이 비율.
     /// 0~1 범위이며 1이면 전체 바 길이와 같다.
-    /// UI에서 시작 폭을 동기화하면 그 값이 우선 사용될 수 있다.
+    /// UI에서 별도 기준 폭을 등록하면 그 값으로 대체될 수 있다.
     /// </summary>
     [SerializeField, Range(0.05f, 1f)] private float initialSafeZoneSize01 = 0.42f;
 
@@ -131,7 +131,6 @@ public class HandClap_BalanceMinigameController : MonoBehaviour
 
     /// <summary>
     /// BalanceLine 이 너무 가장자리 끝에 붙지 않게 하기 위한 패딩 비율.
-    /// UI에서 실제 라인 반폭 기준 padding 을 전달하면 그 값과 더 큰 쪽을 사용한다.
     /// </summary>
     [SerializeField, Range(0f, 0.2f)] private float balanceLineEdgePadding01 = 0.03f;
 
@@ -169,16 +168,10 @@ public class HandClap_BalanceMinigameController : MonoBehaviour
     [SerializeField] private bool verboseLog = false;
 
     /// <summary>
-    /// UI가 정한 시작 SafeZone 크기 비율 오버라이드.
-    /// 0 이하이면 Inspector 기본값을 사용한다.
+    /// UI 쪽에서 시작 SafeZone 폭을 비율로 등록했을 때 저장하는 런타임 오버라이드 값.
+    /// 0 이하이면 기본 initialSafeZoneSize01 을 사용한다.
     /// </summary>
     private float runtimeInitialSafeZoneSize01Override = -1f;
-
-    /// <summary>
-    /// UI가 정한 BalanceLine 반폭 기반 padding 오버라이드.
-    /// 0 이하이면 Inspector 기본값만 사용한다.
-    /// </summary>
-    private float runtimeBalanceLineEdgePadding01Override = -1f;
 
     /// <summary>
     /// 미니게임 시작 시 외부에 알려주는 이벤트.
@@ -233,7 +226,6 @@ public class HandClap_BalanceMinigameController : MonoBehaviour
     /// <summary>
     /// 노란 BalanceLine 의 현재 위치 비율.
     /// 자동으로 움직이는 대상이다.
-    /// 이 값은 "트랙 전체 기준 정규화 위치"다.
     /// </summary>
     private float balanceLine01 = 0.5f;
 
@@ -275,7 +267,7 @@ public class HandClap_BalanceMinigameController : MonoBehaviour
     private float SafeZoneAvailableTravel01 => Mathf.Max(0f, 1f - currentSafeZoneSize01);
 
     /// <summary>
-    /// 현재 사용할 시작 SafeZone 크기 비율.
+    /// 현재 사용할 시작 SafeZone 크기 비율을 반환한다.
     /// UI 오버라이드가 있으면 그 값을 우선 사용한다.
     /// </summary>
     private float EffectiveInitialSafeZoneSize01
@@ -287,22 +279,6 @@ public class HandClap_BalanceMinigameController : MonoBehaviour
                 : initialSafeZoneSize01;
 
             return Mathf.Clamp(resolvedValue, minSafeZoneSize01, 1f);
-        }
-    }
-
-    /// <summary>
-    /// 실제로 사용할 BalanceLine 가장자리 패딩 비율.
-    /// Inspector 기본값과 UI 오버라이드 중 더 큰 값을 사용한다.
-    /// </summary>
-    private float EffectiveBalanceLineEdgePadding01
-    {
-        get
-        {
-            float overrideValue = runtimeBalanceLineEdgePadding01Override > 0f
-                ? runtimeBalanceLineEdgePadding01Override
-                : 0f;
-
-            return Mathf.Clamp(Mathf.Max(balanceLineEdgePadding01, overrideValue), 0f, 0.49f);
         }
     }
 
@@ -377,7 +353,6 @@ public class HandClap_BalanceMinigameController : MonoBehaviour
 
     /// <summary>
     /// 외부에서 현재 BalanceLine 이 SafeZone 안에 있는지 읽기 위한 프로퍼티.
-    /// 현재 판정은 BalanceLine 중심점 기준이다.
     /// </summary>
     public bool IsInsideSafeZone
     {
@@ -388,9 +363,14 @@ public class HandClap_BalanceMinigameController : MonoBehaviour
     }
 
     /// <summary>
-    /// UI에서 계산한 시작 SafeZone 크기 비율을 컨트롤러에 전달한다.
+    /// UI가 "내가 원하는 시작 SafeZone 폭"을 트랙 기준 0~1 비율로 계산해서
+    /// 컨트롤러에 등록할 때 사용하는 함수.
+    ///
+    /// 중요:
+    /// - 플레이 전이면 즉시 시작 크기 기준도 같이 갱신한다.
+    /// - 플레이 도중에는 현재 판 진행을 강제로 바꾸지 않고, 다음 시작부터 기준으로 반영한다.
     /// </summary>
-    /// <param name="size01">트랙 전체 길이 대비 SafeZone 시작 비율.</param>
+    /// <param name="size01">트랙 전체 길이 대비 시작 SafeZone 비율.</param>
     public void SetInitialSafeZoneSize01FromUI(float size01)
     {
         runtimeInitialSafeZoneSize01Override = Mathf.Clamp(size01, minSafeZoneSize01, 1f);
@@ -403,22 +383,7 @@ public class HandClap_BalanceMinigameController : MonoBehaviour
 
         if (verboseLog)
         {
-            Debug.Log($"[HandClap_BalanceMinigameController] UI 기준 SafeZone 시작 비율 등록: {runtimeInitialSafeZoneSize01Override:0.000}");
-        }
-    }
-
-    /// <summary>
-    /// UI에서 계산한 BalanceLine 반폭 비율을 컨트롤러에 전달한다.
-    /// 이 값은 로직상 가장자리 패딩으로 사용되어, 판정과 비주얼 범위를 맞추는 데 사용된다.
-    /// </summary>
-    /// <param name="halfWidth01">트랙 전체 길이 대비 BalanceLine 반폭 비율.</param>
-    public void SetBalanceLineHalfWidth01FromUI(float halfWidth01)
-    {
-        runtimeBalanceLineEdgePadding01Override = Mathf.Clamp(halfWidth01, 0f, 0.49f);
-
-        if (verboseLog)
-        {
-            Debug.Log($"[HandClap_BalanceMinigameController] UI 기준 BalanceLine 반폭 패딩 등록: {runtimeBalanceLineEdgePadding01Override:0.000}");
+            Debug.Log($"[HandClap_BalanceMinigameController] UI 기준 시작 SafeZone 비율 등록: {runtimeInitialSafeZoneSize01Override:0.000}");
         }
     }
 
@@ -504,7 +469,7 @@ public class HandClap_BalanceMinigameController : MonoBehaviour
 
         if (verboseLog)
         {
-            Debug.Log($"[HandClap_BalanceMinigameController] 균형 미니게임 시작 - SafeZone: {currentSafeZoneSize01:0.000}, LinePadding: {EffectiveBalanceLineEdgePadding01:0.000}");
+            Debug.Log($"[HandClap_BalanceMinigameController] 균형 미니게임 시작 - 시작 SafeZone 비율: {currentSafeZoneSize01:0.000}");
         }
 
         OnBalanceMinigameStarted?.Invoke();
@@ -659,13 +624,11 @@ public class HandClap_BalanceMinigameController : MonoBehaviour
             deltaTime
         );
 
-        float edgePadding = EffectiveBalanceLineEdgePadding01;
-        balanceLine01 = Mathf.Clamp(balanceLine01, edgePadding, 1f - edgePadding);
+        balanceLine01 = Mathf.Clamp(balanceLine01, balanceLineEdgePadding01, 1f - balanceLineEdgePadding01);
     }
 
     /// <summary>
     /// BalanceLine 의 다음 목표 위치를 정한다.
-    /// UI와 맞춘 실제 edge padding 범위를 고려한다.
     /// </summary>
     private void ChooseNextBalanceLineTarget()
     {
@@ -673,9 +636,7 @@ public class HandClap_BalanceMinigameController : MonoBehaviour
         float centerPull = (0.5f - balanceLine01) * balanceLineCenterBias;
 
         float nextTarget = balanceLine01 + randomShift + centerPull;
-        float edgePadding = EffectiveBalanceLineEdgePadding01;
-
-        balanceLineTarget01 = Mathf.Clamp(nextTarget, edgePadding, 1f - edgePadding);
+        balanceLineTarget01 = Mathf.Clamp(nextTarget, balanceLineEdgePadding01, 1f - balanceLineEdgePadding01);
     }
 
     /// <summary>

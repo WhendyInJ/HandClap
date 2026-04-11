@@ -1481,7 +1481,7 @@ MonoBehaviour:
   balanceLineEndPoint: {fileID: 659267383}
   safeZoneRect: {fileID: 865972439}
   balanceLineRect: {fileID: 511704886}
-  safeZoneBaseWidthInPixels: 1
+  safeZoneBaseWidthInPixels: 180
   timerFillImage: {fileID: 215090984}
   recoveryFillImage: {fileID: 1214706204}
   recoveryPercentText: {fileID: 1507832819}

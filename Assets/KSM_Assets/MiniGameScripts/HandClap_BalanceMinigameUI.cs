@@ -6,12 +6,11 @@ using UnityEngine.UI;
 /// 손바닥 밀치기용 균형 미니게임 UI를 실제 화면에 반영하는 스크립트.
 ///
 /// 이번 수정의 핵심:
-/// 1. SafeZone 폭을 더 이상 "기존 Rect 폭 캐시" 기준으로 계산하지 않는다.
-/// 2. SafeZone 은 BalanceBar 와 동일하게 StartPoint ~ EndPoint 기준으로 직접 배치한다.
-/// 3. 즉, Inspector 에서 연결한 기준점 범위가 곧 실제 SafeZone 이동/크기 기준이 된다.
-/// 4. SafeZone 이 stretch 상태였더라도, 시작 시 한 번 정상 Rect 형태로 정규화한 뒤 사용한다.
-/// 5. SafeZone 이동 위치는 controller.SafeZoneStart01 / End01 을 그대로 반영한다.
-/// 6. SafeZone 폭은 (EndX - StartX) 로 계산하므로 과도하게 커지는 문제가 사라진다.
+/// 1. SafeZone 시작 폭을 더 이상 현재 RectTransform 의 보이는 폭에서 추정하지 않는다.
+/// 2. SafeZone 시작 폭은 Inspector 의 safeZoneBaseWidthInPixels 값을 절대 기준으로 사용한다.
+/// 3. 그 폭을 바탕으로 컨트롤러의 시작 SafeZone 비율도 같이 동기화한다.
+/// 4. 이후 실제 SafeZone 표시 위치와 폭은 controller.SafeZoneStart01 / End01 로 그린다.
+/// 5. 즉, "보이는 SafeZone 크기"와 "실제 판정 SafeZone 크기"를 같은 기준으로 맞춘다.
 /// </summary>
 public class HandClap_BalanceMinigameUI : MonoBehaviour
 {
@@ -59,6 +58,18 @@ public class HandClap_BalanceMinigameUI : MonoBehaviour
     /// 노란 BalanceBar RectTransform.
     /// </summary>
     [SerializeField] private RectTransform balanceLineRect = null;
+
+    [Header("SafeZone 기준 폭 설정")]
+
+    /// <summary>
+    /// SafeZone 의 시작 최대 폭을 픽셀 기준으로 직접 지정한다.
+    ///
+    /// 중요:
+    /// - 이 값이 "내가 설정한 SafeZone 시작 크기"의 진짜 기준이다.
+    /// - stretch, world corners, 자동 계산에 영향받지 않는다.
+    /// - 예: 180 으로 넣으면 시작 시 SafeZone 이 정확히 180px 폭이 되도록 동작한다.
+    /// </summary>
+    [SerializeField, Min(1f)] private float safeZoneBaseWidthInPixels = 180f;
 
     [Header("상단 타이머 바 참조")]
 
@@ -122,19 +133,21 @@ public class HandClap_BalanceMinigameUI : MonoBehaviour
 
     /// <summary>
     /// UI가 활성화된 마지막 상태를 저장한다.
-    /// 불필요한 SetActive 반복 호출을 줄이기 위해 사용한다.
     /// </summary>
     private bool lastVisibleState = true;
 
     /// <summary>
     /// TimerFill 의 디자인 최대 폭.
-    /// Inspector 에서 처음 잡아둔 현재 폭을 저장한다.
     /// </summary>
     private float cachedTimerFillMaxWidth = -1f;
 
     /// <summary>
+    /// RecoveryFill 의 디자인 최대 폭.
+    /// </summary>
+    private float cachedRecoveryFillMaxWidth = -1f;
+
+    /// <summary>
     /// TimerFill 의 초기 왼쪽 시작 X 좌표.
-    /// 이후 길이가 줄어도 왼쪽 끝이 유지되도록 사용한다.
     /// </summary>
     private float cachedTimerFillLeftX = 0f;
 
@@ -157,11 +170,6 @@ public class HandClap_BalanceMinigameUI : MonoBehaviour
     /// TimerFill 의 초기 Pivot X 값.
     /// </summary>
     private float cachedTimerFillPivotX = 0f;
-
-    /// <summary>
-    /// RecoveryFill 의 디자인 최대 폭.
-    /// </summary>
-    private float cachedRecoveryFillMaxWidth = -1f;
 
     /// <summary>
     /// RecoveryFill 의 초기 왼쪽 시작 X 좌표.
@@ -189,32 +197,25 @@ public class HandClap_BalanceMinigameUI : MonoBehaviour
     private float cachedRecoveryFillPivotX = 0f;
 
     /// <summary>
-    /// SafeZone 의 기본 중심 X 좌표.
-    /// 컨트롤러가 없거나 시작 전일 때 표시용으로 사용한다.
+    /// SafeZone 기본 중심 X 좌표.
+    /// 미니게임 시작 전 기본 표시 상태 복원용이다.
     /// </summary>
-    private float cachedSafeZoneLocalX = 0f;
+    private float cachedSafeZoneCenterX = 0f;
 
     /// <summary>
-    /// SafeZone 의 고정 로컬 Y 좌표.
+    /// SafeZone 기본 중심 Y 좌표.
     /// </summary>
-    private float cachedSafeZoneLocalY = 0f;
+    private float cachedSafeZoneCenterY = 0f;
 
     /// <summary>
-    /// SafeZone 의 고정 로컬 Z 좌표.
+    /// SafeZone 기본 로컬 Z 좌표.
     /// </summary>
     private float cachedSafeZoneLocalZ = 0f;
 
     /// <summary>
-    /// SafeZone 의 고정 높이.
+    /// SafeZone 높이.
     /// </summary>
     private float cachedSafeZoneHeight = 0f;
-
-    /// <summary>
-    /// SafeZone 의 기본 폭.
-    /// 미니게임 시작 전 표시 상태 복원용으로만 사용한다.
-    /// 실제 플레이 중 폭 계산에는 사용하지 않는다.
-    /// </summary>
-    private float cachedSafeZoneDefaultWidth = 0f;
 
     /// <summary>
     /// BalanceBar 의 초기 로컬 Y 좌표.
@@ -232,36 +233,39 @@ public class HandClap_BalanceMinigameUI : MonoBehaviour
     private readonly Vector3[] cachedWorldCorners = new Vector3[4];
 
     /// <summary>
-    /// 시작 전에 기본 표시 상태를 초기화한다.
+    /// 시작 전에 디자인 데이터를 캐싱하고 기본 상태를 적용한다.
     /// </summary>
     private void Awake()
     {
         CacheDesignData();
+        SyncControllerInitialSafeZoneSizeFromVisualBase();
         ResetVisualsToDefault();
     }
 
     /// <summary>
-    /// 활성화될 때도 다시 한 번 기본 표시 상태를 맞춘다.
+    /// 활성화될 때도 다시 한 번 동기화한다.
     /// </summary>
     private void OnEnable()
     {
         CacheDesignData();
+        SyncControllerInitialSafeZoneSizeFromVisualBase();
         RefreshRootVisibility(force: true);
         ResetVisualsToDefault();
     }
 
     /// <summary>
-    /// 시작 시 현재 컨트롤러 상태에 맞춰 UI 활성 상태를 정리한다.
+    /// 시작 시 현재 컨트롤러 상태에 맞춰 UI를 정리한다.
     /// </summary>
     private void Start()
     {
         CacheDesignData();
+        SyncControllerInitialSafeZoneSizeFromVisualBase();
         RefreshRootVisibility(force: true);
         RefreshUIImmediately();
     }
 
     /// <summary>
-    /// 화면 크기나 RectTransform 크기가 바뀌는 경우 즉시 다시 배치한다.
+    /// 화면 크기나 RectTransform 크기가 바뀌면 다시 기준을 잡는다.
     /// </summary>
     private void OnRectTransformDimensionsChange()
     {
@@ -270,6 +274,8 @@ public class HandClap_BalanceMinigameUI : MonoBehaviour
             return;
         }
 
+        CacheDesignData();
+        SyncControllerInitialSafeZoneSizeFromVisualBase();
         RefreshUIImmediately();
     }
 
@@ -356,13 +362,12 @@ public class HandClap_BalanceMinigameUI : MonoBehaviour
     }
 
     /// <summary>
-    /// SafeZone 의 현재 시각 상태를 읽은 뒤,
-    /// stretch 영향을 끊기 위해 "Anchor 중앙 / Pivot 중앙" 형태로 한 번 정규화한다.
+    /// SafeZone 의 현재 배치 상태를 읽어서
+    /// Y, Z, 높이, 기본 중심 위치를 캐싱한다.
     ///
     /// 중요:
-    /// - 여기서는 SafeZone 의 현재 화면 위치/높이만 안정적으로 고정하기 위한 작업만 한다.
-    /// - 실제 플레이 중 폭 계산은 여기서 캐싱한 폭을 사용하지 않는다.
-    /// - 실제 폭은 RefreshSafeZone() 에서 marker 범위와 controller.SafeZoneStart01/End01 으로 계산한다.
+    /// - 여기서는 SafeZone "폭"을 기준으로 삼지 않는다.
+    /// - 시작 폭은 오직 safeZoneBaseWidthInPixels 를 진짜 기준으로 사용한다.
     /// </summary>
     private void CacheSafeZoneData()
     {
@@ -373,64 +378,50 @@ public class HandClap_BalanceMinigameUI : MonoBehaviour
 
         RectTransform parentRect = safeZoneRect.parent as RectTransform;
 
-        if (parentRect == null)
+        if (parentRect != null)
         {
-            return;
-        }
+            safeZoneRect.GetWorldCorners(cachedWorldCorners);
 
-        safeZoneRect.GetWorldCorners(cachedWorldCorners);
+            float minX = 0f;
+            float maxX = 0f;
+            float minY = 0f;
+            float maxY = 0f;
+            bool initialized = false;
 
-        float minX = 0f;
-        float maxX = 0f;
-        float minY = 0f;
-        float maxY = 0f;
-        bool initialized = false;
-
-        for (int index = 0; index < cachedWorldCorners.Length; index++)
-        {
-            Vector3 localPoint = parentRect.InverseTransformPoint(cachedWorldCorners[index]);
-
-            if (!initialized)
+            for (int index = 0; index < cachedWorldCorners.Length; index++)
             {
-                minX = maxX = localPoint.x;
-                minY = maxY = localPoint.y;
-                initialized = true;
-                continue;
+                Vector3 localPoint = parentRect.InverseTransformPoint(cachedWorldCorners[index]);
+
+                if (!initialized)
+                {
+                    minX = maxX = localPoint.x;
+                    minY = maxY = localPoint.y;
+                    initialized = true;
+                    continue;
+                }
+
+                minX = Mathf.Min(minX, localPoint.x);
+                maxX = Mathf.Max(maxX, localPoint.x);
+                minY = Mathf.Min(minY, localPoint.y);
+                maxY = Mathf.Max(maxY, localPoint.y);
             }
 
-            minX = Mathf.Min(minX, localPoint.x);
-            maxX = Mathf.Max(maxX, localPoint.x);
-            minY = Mathf.Min(minY, localPoint.y);
-            maxY = Mathf.Max(maxY, localPoint.y);
+            cachedSafeZoneCenterX = (minX + maxX) * 0.5f;
+            cachedSafeZoneCenterY = (minY + maxY) * 0.5f;
+            cachedSafeZoneLocalZ = safeZoneRect.localPosition.z;
+            cachedSafeZoneHeight = Mathf.Max(1f, maxY - minY);
         }
-
-        float visualWidth = Mathf.Max(0f, maxX - minX);
-        float visualHeight = Mathf.Max(0f, maxY - minY);
-        float visualCenterX = (minX + maxX) * 0.5f;
-        float visualCenterY = (minY + maxY) * 0.5f;
-        float visualLocalZ = safeZoneRect.localPosition.z;
-
-        if (visualHeight <= 0.01f)
+        else
         {
-            visualHeight = Mathf.Max(Mathf.Abs(safeZoneRect.rect.height), Mathf.Abs(safeZoneRect.sizeDelta.y));
-        }
-
-        if (visualWidth <= 0.01f)
-        {
-            visualWidth = Mathf.Max(Mathf.Abs(safeZoneRect.rect.width), Mathf.Abs(safeZoneRect.sizeDelta.x));
+            cachedSafeZoneCenterX = safeZoneRect.localPosition.x;
+            cachedSafeZoneCenterY = safeZoneRect.localPosition.y;
+            cachedSafeZoneLocalZ = safeZoneRect.localPosition.z;
+            cachedSafeZoneHeight = Mathf.Max(1f, Mathf.Abs(safeZoneRect.rect.height), Mathf.Abs(safeZoneRect.sizeDelta.y));
         }
 
         safeZoneRect.anchorMin = new Vector2(0.5f, 0.5f);
         safeZoneRect.anchorMax = new Vector2(0.5f, 0.5f);
         safeZoneRect.pivot = new Vector2(0.5f, 0.5f);
-        safeZoneRect.localPosition = new Vector3(visualCenterX, visualCenterY, visualLocalZ);
-        safeZoneRect.sizeDelta = new Vector2(visualWidth, visualHeight);
-
-        cachedSafeZoneLocalX = visualCenterX;
-        cachedSafeZoneLocalY = visualCenterY;
-        cachedSafeZoneLocalZ = visualLocalZ;
-        cachedSafeZoneHeight = visualHeight;
-        cachedSafeZoneDefaultWidth = visualWidth;
     }
 
     /// <summary>
@@ -445,6 +436,40 @@ public class HandClap_BalanceMinigameUI : MonoBehaviour
 
         cachedBalanceBarLocalY = balanceLineRect.localPosition.y;
         cachedBalanceBarLocalZ = balanceLineRect.localPosition.z;
+    }
+
+    /// <summary>
+    /// UI에서 정한 SafeZone 시작 픽셀 폭을
+    /// 컨트롤러가 사용하는 시작 SafeZone 비율로 변환해서 전달한다.
+    ///
+    /// 예:
+    /// - 트랙 길이 600px
+    /// - safeZoneBaseWidthInPixels 180
+    /// => 시작 SafeZone 비율은 0.3
+    /// </summary>
+    private void SyncControllerInitialSafeZoneSizeFromVisualBase()
+    {
+        if (controller == null || safeZoneRect == null)
+        {
+            return;
+        }
+
+        RectTransform targetParent = safeZoneRect.parent as RectTransform;
+
+        if (!TryGetMarkerRangeInParentSpace(
+            balanceLineStartPoint,
+            balanceLineEndPoint,
+            targetParent,
+            out float startX,
+            out float endX))
+        {
+            return;
+        }
+
+        float totalTrackWidth = Mathf.Max(1f, endX - startX);
+        float designSize01 = Mathf.Clamp01(safeZoneBaseWidthInPixels / totalTrackWidth);
+
+        controller.SetInitialSafeZoneSize01FromUI(designSize01);
     }
 
     /// <summary>
@@ -488,12 +513,12 @@ public class HandClap_BalanceMinigameUI : MonoBehaviour
             safeZoneRect.anchorMax = new Vector2(0.5f, 0.5f);
             safeZoneRect.pivot = new Vector2(0.5f, 0.5f);
             safeZoneRect.localPosition = new Vector3(
-                cachedSafeZoneLocalX,
-                cachedSafeZoneLocalY,
+                cachedSafeZoneCenterX,
+                cachedSafeZoneCenterY,
                 cachedSafeZoneLocalZ);
 
             safeZoneRect.sizeDelta = new Vector2(
-                cachedSafeZoneDefaultWidth,
+                safeZoneBaseWidthInPixels,
                 cachedSafeZoneHeight);
         }
 
@@ -558,7 +583,6 @@ public class HandClap_BalanceMinigameUI : MonoBehaviour
 
     /// <summary>
     /// 상단 타이머 바를 갱신한다.
-    /// 현재 위치/높이는 유지하고, 가로 길이만 0~1 비율로 줄인다.
     /// </summary>
     private void RefreshTimerBar()
     {
@@ -585,11 +609,11 @@ public class HandClap_BalanceMinigameUI : MonoBehaviour
     /// <summary>
     /// SafeZone 의 시각 표현을 갱신한다.
     ///
-    /// 이번 수정의 핵심:
-    /// - SafeZone 폭을 기존 Rect 캐시 기반으로 줄이지 않는다.
-    /// - StartPoint ~ EndPoint 사이에서 controller.SafeZoneStart01 / End01 으로 직접 배치한다.
-    /// - 즉, SafeZone 폭과 위치가 전부 "네가 연결한 기준점" 기준으로 결정된다.
-    /// - 이 방식이면 stretch 였던 이전 폭이 아무리 커도 실제 표시에는 영향을 주지 않는다.
+    /// 중요:
+    /// - 시작 폭은 더 이상 현재 Rect 의 보이는 폭으로 계산하지 않는다.
+    /// - 컨트롤러가 내보낸 SafeZoneStart01 / End01 를
+    ///   marker 범위에 직접 매핑해서 위치와 폭을 결정한다.
+    /// - 따라서 좌우 대칭과 실제 SafeZone 판정 크기가 일치한다.
     /// </summary>
     private void RefreshSafeZone()
     {
@@ -613,8 +637,8 @@ public class HandClap_BalanceMinigameUI : MonoBehaviour
         float safeZoneStartX = Mathf.Lerp(startX, endX, controller.SafeZoneStart01);
         float safeZoneEndX = Mathf.Lerp(startX, endX, controller.SafeZoneEnd01);
 
-        float safeZoneCenterX = (safeZoneStartX + safeZoneEndX) * 0.5f;
         float safeZoneWidth = Mathf.Max(0f, safeZoneEndX - safeZoneStartX);
+        float safeZoneCenterX = (safeZoneStartX + safeZoneEndX) * 0.5f;
 
         safeZoneRect.anchorMin = new Vector2(0.5f, 0.5f);
         safeZoneRect.anchorMax = new Vector2(0.5f, 0.5f);
@@ -622,7 +646,7 @@ public class HandClap_BalanceMinigameUI : MonoBehaviour
 
         safeZoneRect.localPosition = new Vector3(
             safeZoneCenterX,
-            cachedSafeZoneLocalY,
+            cachedSafeZoneCenterY,
             cachedSafeZoneLocalZ);
 
         Vector2 currentSize = safeZoneRect.sizeDelta;
@@ -633,7 +657,6 @@ public class HandClap_BalanceMinigameUI : MonoBehaviour
 
     /// <summary>
     /// BalanceBar 의 좌우 위치를 갱신한다.
-    /// BalanceBar 역시 marker 기준으로 이동한다.
     /// </summary>
     private void RefreshBalanceBar()
     {
@@ -664,7 +687,6 @@ public class HandClap_BalanceMinigameUI : MonoBehaviour
 
     /// <summary>
     /// 중앙 복구 게이지와 숫자 텍스트를 갱신한다.
-    /// 현재 위치/높이는 유지하고, 가로 길이만 0~1 비율로 변경한다.
     /// </summary>
     private void RefreshRecoveryGauge()
     {
