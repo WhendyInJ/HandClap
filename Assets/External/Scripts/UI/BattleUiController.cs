@@ -34,6 +34,7 @@ public class BattleUiController : MonoBehaviour
         [Range(0.25f, 1.5f)] public float overlapTolerance = 1f;
         [Min(0f)] public float failDrainPerSecond = 0.35f;
         [Min(0f)] public float recoverPerSecond = 0.65f;
+        [Min(0f)] public float incomingDamagePerHit = 1f;
         public bool hideWhenInactive = true;
     }
 
@@ -50,6 +51,7 @@ public class BattleUiController : MonoBehaviour
     private float currentEnemyHealth;
     private float currentFailGauge;
     private float currentRecoverGauge;
+    private float lastPlayerDamageTaken;
     private float qteBarDirection = 1f;
     private bool isPlayerQteActive;
 
@@ -59,6 +61,7 @@ public class BattleUiController : MonoBehaviour
     public float EnemyHealthNormalized => Normalize(currentEnemyHealth, enemyHealth.maxHealth);
     public float FailGaugeNormalized => currentFailGauge;
     public float RecoverGaugeNormalized => currentRecoverGauge;
+    public float LastPlayerDamageTaken => lastPlayerDamageTaken;
 
     void Reset()
     {
@@ -93,6 +96,7 @@ public class BattleUiController : MonoBehaviour
         playerQte.inputBoxSpeed = Mathf.Max(0f, playerQte.inputBoxSpeed);
         playerQte.failDrainPerSecond = Mathf.Max(0f, playerQte.failDrainPerSecond);
         playerQte.recoverPerSecond = Mathf.Max(0f, playerQte.recoverPerSecond);
+        playerQte.incomingDamagePerHit = Mathf.Max(0f, playerQte.incomingDamagePerHit);
 
         if (!Application.isPlaying)
             ApplyImmediateUiState();
@@ -125,10 +129,16 @@ public class BattleUiController : MonoBehaviour
 
     public void StartPlayerQte()
     {
+        StartPlayerQte(0f);
+    }
+
+    public void StartPlayerQte(float incomingDamage)
+    {
         if (isPlayerQteActive)
             return;
 
         isPlayerQteActive = true;
+        lastPlayerDamageTaken = Mathf.Max(0f, incomingDamage);
         currentFailGauge = 1f;
         currentRecoverGauge = 0f;
         qteBarDirection = 1f;
@@ -155,12 +165,22 @@ public class BattleUiController : MonoBehaviour
 
         if (eventData.Actor == playerController && eventData.Opponent == enemyController)
         {
-            ApplyEnemyDamage(enemyHealth.damagePerHit);
+            float finalDamage = SlotStatRules.CalculateEnemyReceivedDamage(
+                enemyHealth.damagePerHit,
+                playerController.Build,
+                enemyController.Build);
+            ApplyEnemyDamage(finalDamage);
             return;
         }
 
         if (eventData.Actor == enemyController && eventData.Opponent == playerController)
-            StartPlayerQte();
+        {
+            float finalDamage = SlotStatRules.CalculatePlayerReceivedDamage(
+                playerQte.incomingDamagePerHit,
+                enemyController.Build,
+                playerController.Build);
+            StartPlayerQte(finalDamage);
+        }
     }
 
     void SubscribeCombatEvents()
@@ -186,7 +206,7 @@ public class BattleUiController : MonoBehaviour
         if (playerController != null && enemyController != null)
             return;
 
-        PlayerController[] controllers = FindObjectsOfType<PlayerController>();
+        PlayerController[] controllers = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
         for (int i = 0; i < controllers.Length; i++)
         {
             PlayerController controller = controllers[i];
@@ -235,9 +255,9 @@ public class BattleUiController : MonoBehaviour
         bool isRecovering = IsQteSuccessState();
 
         if (isRecovering)
-            currentRecoverGauge = Mathf.MoveTowards(currentRecoverGauge, 1f, playerQte.recoverPerSecond * Time.deltaTime);
+            currentRecoverGauge = Mathf.MoveTowards(currentRecoverGauge, 1f, GetEffectiveRecoverPerSecond() * Time.deltaTime);
         else
-            currentFailGauge = Mathf.MoveTowards(currentFailGauge, 0f, playerQte.failDrainPerSecond * Time.deltaTime);
+            currentFailGauge = Mathf.MoveTowards(currentFailGauge, 0f, GetEffectiveFailDrainPerSecond() * Time.deltaTime);
 
         UpdateQteGaugeUi();
 
@@ -276,7 +296,7 @@ public class BattleUiController : MonoBehaviour
             return;
 
         float maxX = GetMovementLimit(playerQte.movingBar);
-        float nextX = playerQte.movingBar.anchoredPosition.x + qteBarDirection * playerQte.movingBarSpeed * Time.deltaTime;
+        float nextX = playerQte.movingBar.anchoredPosition.x + qteBarDirection * GetEffectiveMovingBarSpeed() * Time.deltaTime;
 
         if (nextX > maxX)
         {
@@ -304,7 +324,7 @@ public class BattleUiController : MonoBehaviour
             input += 1f;
 
         float maxX = GetMovementLimit(playerQte.inputBox);
-        float nextX = playerQte.inputBox.anchoredPosition.x + input * playerQte.inputBoxSpeed * Time.deltaTime;
+        float nextX = playerQte.inputBox.anchoredPosition.x + input * GetEffectiveInputBoxSpeed() * Time.deltaTime;
         SetAnchoredX(playerQte.inputBox, Mathf.Clamp(nextX, -maxX, maxX));
     }
 
@@ -316,9 +336,41 @@ public class BattleUiController : MonoBehaviour
         float distance = Mathf.Abs(playerQte.movingBar.anchoredPosition.x - playerQte.inputBox.anchoredPosition.x);
         float overlapRange = (GetRectWidth(playerQte.movingBar) + GetRectWidth(playerQte.inputBox))
             * 0.5f
-            * playerQte.overlapTolerance;
+            * GetEffectiveOverlapTolerance();
 
         return distance <= overlapRange;
+    }
+
+    float GetEffectiveMovingBarSpeed()
+    {
+        return playerQte.movingBarSpeed * GetPlayerStaggerDifficulty();
+    }
+
+    float GetEffectiveInputBoxSpeed()
+    {
+        return playerQte.inputBoxSpeed / GetPlayerStaggerDifficulty();
+    }
+
+    float GetEffectiveOverlapTolerance()
+    {
+        return Mathf.Max(0.01f, playerQte.overlapTolerance / GetPlayerStaggerDifficulty());
+    }
+
+    float GetEffectiveFailDrainPerSecond()
+    {
+        return playerQte.failDrainPerSecond * GetPlayerStaggerDifficulty();
+    }
+
+    float GetEffectiveRecoverPerSecond()
+    {
+        return playerQte.recoverPerSecond / GetPlayerStaggerDifficulty();
+    }
+
+    float GetPlayerStaggerDifficulty()
+    {
+        return playerController != null
+            ? Mathf.Max(0.01f, playerController.StaggerDifficultyMultiplier)
+            : 1f;
     }
 
     float GetMovementLimit(RectTransform target)

@@ -89,6 +89,9 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private PlayerController opponentController;
     [SerializeField] private bool enableCombatDebugLogs = true;
 
+    [Header("Slot Build")]
+    [SerializeField] private PlayerBuild build = PlayerBuild.Default;
+
     // ── 내부 상태 ──────────────────────────────────────────
     private Vector3    basePivotLocalPos;
     private Vector3    baseVisualLocalScale;
@@ -205,6 +208,21 @@ public class PlayerController : MonoBehaviour
         opponentController = opponent;
     }
 
+    public void ApplyBuild(PlayerBuild newBuild)
+    {
+        build = newBuild;
+    }
+
+    public void SetBuild(Element element, BodyType bodyType, HandSize handSize)
+    {
+        ApplyBuild(new PlayerBuild
+        {
+            Element = element,
+            BodyType = bodyType,
+            HandSize = handSize
+        });
+    }
+
     public CombatState CurrentCombatState =>
         isPushing ? CombatState.Attack :
         isDodging ? CombatState.Dodge :
@@ -218,6 +236,14 @@ public class PlayerController : MonoBehaviour
 
     public CombatActorSide ActorSide => actorSide;
     public PlayerController OpponentController => opponentController;
+    public PlayerBuild Build => build;
+    public Element Element => build.Element;
+    public BodyType BodyType => build.BodyType;
+    public HandSize HandSize => build.HandSize;
+    public float AttackDamageMultiplier => SlotStatRules.GetHandDamageMultiplier(build.HandSize);
+    public float AttackCooldownMultiplier => SlotStatRules.GetAttackCooldownMultiplier(build.HandSize);
+    public float ReceivedDamageMultiplier => SlotStatRules.GetReceivedDamageMultiplier(build.BodyType);
+    public float StaggerDifficultyMultiplier => SlotStatRules.GetStaggerDifficultyMultiplier(build.BodyType);
 
     string DisplayName => string.IsNullOrWhiteSpace(actorName) ? gameObject.name : actorName;
     string CombatLabel => string.IsNullOrWhiteSpace(actorName)
@@ -537,7 +563,7 @@ public class PlayerController : MonoBehaviour
 
         FinishPushState(basePos, baseRot);
 
-        yield return new WaitForSeconds(cooldown);
+        yield return new WaitForSeconds(GetAttackCooldownDuration());
         onCooldown = false;
     }
 
@@ -555,8 +581,13 @@ public class PlayerController : MonoBehaviour
 
         FinishPushState(basePos, baseRot);
 
-        yield return new WaitForSeconds(cooldown);
+        yield return new WaitForSeconds(GetAttackCooldownDuration());
         onCooldown = false;
+    }
+
+    float GetAttackCooldownDuration()
+    {
+        return Mathf.Max(0f, cooldown * AttackCooldownMultiplier);
     }
 
     void FinishPushState(Vector3 basePos, Quaternion baseRot)

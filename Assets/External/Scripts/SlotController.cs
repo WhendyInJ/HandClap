@@ -7,9 +7,13 @@ public class SlotController : MonoBehaviour
     public Reel reelBody;
     public Reel reelHand;
 
+    [SerializeField] private PlayerController targetPlayer;
+
     [Tooltip("마지막 릴(Hand) 정지가 끝난 뒤 Space로 다시 돌릴 수 있을 때까지 대기(초).")]
     public float inputCooldownAfterStop = 1f;
     [SerializeField] float delayBetweenReelStops = 0.35f;
+
+    public event System.Action<PlayerBuild> BuildResolved;
 
     enum Phase
     {
@@ -26,6 +30,16 @@ public class SlotController : MonoBehaviour
     int pendingSlotElement;
     int pendingSlotBody;
     int pendingSlotHand;
+
+    void Reset()
+    {
+        TryAutoAssignTargetPlayer();
+    }
+
+    void Awake()
+    {
+        TryAutoAssignTargetPlayer();
+    }
 
     void Update()
     {
@@ -82,8 +96,38 @@ public class SlotController : MonoBehaviour
             $"결과 → Element: {pendingBuild.Element} (릴인덱스 {pendingSlotElement}), " +
             $"Body: {pendingBuild.BodyType} ({pendingSlotBody}), Hand: {pendingBuild.HandSize} ({pendingSlotHand})");
 
+        ApplyPendingBuild();
+
         yield return new WaitForSeconds(inputCooldownAfterStop);
 
         phase = Phase.Idle;
+    }
+
+    void ApplyPendingBuild()
+    {
+        if (targetPlayer == null)
+            TryAutoAssignTargetPlayer();
+
+        if (targetPlayer != null)
+            targetPlayer.ApplyBuild(pendingBuild);
+
+        BuildResolved?.Invoke(pendingBuild);
+    }
+
+    void TryAutoAssignTargetPlayer()
+    {
+        if (targetPlayer != null)
+            return;
+
+        PlayerController[] controllers = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
+        for (int i = 0; i < controllers.Length; i++)
+        {
+            PlayerController controller = controllers[i];
+            if (controller != null && controller.ActorSide == CombatActorSide.Player)
+            {
+                targetPlayer = controller;
+                return;
+            }
+        }
     }
 }

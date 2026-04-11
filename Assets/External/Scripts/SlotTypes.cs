@@ -31,6 +31,97 @@ public struct PlayerBuild
     public Element Element;
     public BodyType BodyType;
     public HandSize HandSize;
+
+    public static PlayerBuild Default => new PlayerBuild
+    {
+        Element = Element.Earth,
+        BodyType = BodyType.Normal,
+        HandSize = HandSize.Medium
+    };
+}
+
+public static class SlotStatRules
+{
+    public const float ElementAdvantageDamageMultiplier = 1.25f;
+    public const float ElementNeutralDamageMultiplier = 1f;
+    public const float ElementDisadvantageDamageMultiplier = 0.5f;
+
+    public static float GetElementDamageMultiplier(Element attacker, Element defender)
+    {
+        if (attacker == defender)
+            return ElementNeutralDamageMultiplier;
+
+        return HasElementAdvantage(attacker, defender)
+            ? ElementAdvantageDamageMultiplier
+            : ElementDisadvantageDamageMultiplier;
+    }
+
+    public static bool HasElementAdvantage(Element attacker, Element defender)
+    {
+        return (attacker == Element.Water && defender == Element.Earth)
+            || (attacker == Element.Earth && defender == Element.Electric)
+            || (attacker == Element.Electric && defender == Element.Water);
+    }
+
+    public static float GetHandDamageMultiplier(HandSize handSize)
+    {
+        return handSize switch
+        {
+            HandSize.Big => 1.25f,
+            HandSize.Small => 0.75f,
+            _ => 1f,
+        };
+    }
+
+    public static float GetAttackCooldownMultiplier(HandSize handSize)
+    {
+        return handSize switch
+        {
+            HandSize.Big => 1.25f,
+            HandSize.Small => 0.75f,
+            _ => 1f,
+        };
+    }
+
+    public static float GetReceivedDamageMultiplier(BodyType bodyType)
+    {
+        return bodyType switch
+        {
+            BodyType.Heavy => 0.75f,
+            BodyType.Light => 1.25f,
+            _ => 1f,
+        };
+    }
+
+    public static float GetStaggerDifficultyMultiplier(BodyType bodyType)
+    {
+        return bodyType switch
+        {
+            BodyType.Heavy => 1.25f,
+            BodyType.Light => 0.75f,
+            _ => 1f,
+        };
+    }
+
+    public static float CalculatePlayerReceivedDamage(
+        float baseDamage,
+        PlayerBuild enemyBuild,
+        PlayerBuild playerBuild)
+    {
+        return Mathf.Max(0f, baseDamage)
+            * GetElementDamageMultiplier(enemyBuild.Element, playerBuild.Element)
+            * GetReceivedDamageMultiplier(playerBuild.BodyType);
+    }
+
+    public static float CalculateEnemyReceivedDamage(
+        float baseDamage,
+        PlayerBuild playerBuild,
+        PlayerBuild enemyBuild)
+    {
+        return Mathf.Max(0f, baseDamage)
+            * GetElementDamageMultiplier(playerBuild.Element, enemyBuild.Element)
+            * GetHandDamageMultiplier(playerBuild.HandSize);
+    }
 }
 
 /// <summary>
