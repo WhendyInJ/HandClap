@@ -52,11 +52,15 @@ public class BattleUiController : MonoBehaviour
     private float currentRecoverGauge;
     private float qteBarDirection = 1f;
     private bool isPlayerQteActive;
+    private bool enemyDefeated;
 
     public event Action<QteEndReason> PlayerQteEnded;
+    public event Action EnemyDefeated;
 
     public bool IsPlayerQteActive => isPlayerQteActive;
     public float EnemyHealthNormalized => Normalize(currentEnemyHealth, enemyHealth.maxHealth);
+    public float CurrentEnemyHealth => currentEnemyHealth;
+    public float EnemyMaxHealth => enemyHealth.maxHealth;
     public float FailGaugeNormalized => currentFailGauge;
     public float RecoverGaugeNormalized => currentRecoverGauge;
 
@@ -111,6 +115,7 @@ public class BattleUiController : MonoBehaviour
     public void ResetEnemyHealth()
     {
         currentEnemyHealth = enemyHealth.maxHealth;
+        enemyDefeated = false;
         UpdateEnemyHealthUi();
     }
 
@@ -121,6 +126,12 @@ public class BattleUiController : MonoBehaviour
 
         currentEnemyHealth = Mathf.Clamp(currentEnemyHealth - damage, 0f, enemyHealth.maxHealth);
         UpdateEnemyHealthUi();
+
+        if (!enemyDefeated && currentEnemyHealth <= 0f)
+        {
+            enemyDefeated = true;
+            EnemyDefeated?.Invoke();
+        }
     }
 
     public void StartPlayerQte()
@@ -212,6 +223,7 @@ public class BattleUiController : MonoBehaviour
         if (!Application.isPlaying)
         {
             currentEnemyHealth = enemyHealth.maxHealth;
+            enemyDefeated = false;
             currentFailGauge = 1f;
             currentRecoverGauge = 0f;
             isPlayerQteActive = false;

@@ -111,6 +111,8 @@ public class PlayerController : MonoBehaviour
     private bool  attackClashed;
     private bool  dodgeSucceeded;
 
+    bool roundCombatActive = true;
+
     // ═══════════════════════════════════════════════════════
     void Start()
     {
@@ -132,10 +134,10 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
-        if (!isPushing && !isDodging && !isBalancing)
+        if (roundCombatActive && !isPushing && !isDodging && !isBalancing)
             UpdateIdleMotion();
 
-        if (!enableDebugInput)
+        if (!roundCombatActive || !enableDebugInput)
             return;
 
         if (Input.GetKeyDown(pushKey))
@@ -168,7 +170,7 @@ public class PlayerController : MonoBehaviour
 
     public bool TryBalanceDebug()
     {
-        if (isPushing || isDodging || isBalancing)
+        if (!roundCombatActive || isPushing || isDodging || isBalancing)
             return false;
 
         StartCoroutine(DoBalanceDebug());
@@ -193,6 +195,15 @@ public class PlayerController : MonoBehaviour
         enableDebugInput = enabled;
     }
 
+    public bool RoundCombatActive => roundCombatActive;
+
+    public void SetRoundCombatActive(bool active)
+    {
+        roundCombatActive = active;
+        if (!active)
+            hasQueuedDecision = false;
+    }
+
     public void SetDebugKeys(KeyCode newPushKey, KeyCode newDodgeKey, KeyCode newBalanceKey)
     {
         pushKey = newPushKey;
@@ -214,7 +225,8 @@ public class PlayerController : MonoBehaviour
     public bool IsAttackClashWindowActive => isPushing && attackClashWindowActive && !attackResolutionComplete;
     public bool IsDodgeWindowActive => isDodging;
 
-    public bool CanAttemptDecision => !hasQueuedDecision && !isPushing && !isDodging && !isBalancing && !onCooldown;
+    public bool CanAttemptDecision =>
+        roundCombatActive && !hasQueuedDecision && !isPushing && !isDodging && !isBalancing && !onCooldown;
 
     public CombatActorSide ActorSide => actorSide;
     public PlayerController OpponentController => opponentController;
