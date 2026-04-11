@@ -21,6 +21,7 @@ public class CombatActorController : MonoBehaviour
     [SerializeField] private CombatMotionController motion;
 
     private bool roundCombatActive = true;
+    private bool betweenRoundIdleMotion;
     private bool hasQueuedDecision;
     private CombatState queuedDecisionState;
     private bool dodgeSucceeded;
@@ -60,7 +61,7 @@ public class CombatActorController : MonoBehaviour
 
     public bool TryBalanceDebug()
     {
-        return Motion != null && Motion.TryPlayBalanceDebug();
+        return roundCombatActive && Motion != null && Motion.TryPlayBalanceDebug();
     }
 
     public bool TryStayNeutral()
@@ -81,10 +82,32 @@ public class CombatActorController : MonoBehaviour
 
     public void SetRoundCombatActive(bool active)
     {
+        if (!active && hasQueuedDecision)
+            ResolveQueuedDecision();
+
         roundCombatActive = active;
 
-        if (!active)
+        if (active)
+            betweenRoundIdleMotion = false;
+
+        if (!active && hasQueuedDecision)
             hasQueuedDecision = false;
+    }
+
+    public void SetBetweenRoundIdleMotion(bool enabled)
+    {
+        betweenRoundIdleMotion = enabled;
+    }
+
+    public bool BlocksRoundTransition()
+    {
+        if (hasQueuedDecision)
+            return true;
+
+        if (Motion == null)
+            return false;
+
+        return Motion.IsPushing || Motion.IsDodging || Motion.IsBalancing;
     }
 
     public void ApplyBuild(PlayerBuild newBuild)
@@ -121,6 +144,7 @@ public class CombatActorController : MonoBehaviour
 
     public CombatActorSide ActorSide => actorSide;
     public bool RoundCombatActive => roundCombatActive;
+    public bool AllowsIdleMotionWhileInactive => betweenRoundIdleMotion;
     public CombatActorController OpponentController => opponentController;
     public CombatActorStats Stats
     {

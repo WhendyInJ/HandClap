@@ -77,6 +77,8 @@ public class CombatMotionController : MonoBehaviour
     private bool attackClashed;
     private bool initialized;
 
+    CombatActorController ownerActor;
+
     public bool IsPushing => isPushing;
     public bool IsDodging => isDodging;
     public bool IsBalancing => isBalancing;
@@ -94,6 +96,11 @@ public class CombatMotionController : MonoBehaviour
     void Update()
     {
         Initialize();
+
+        if (ownerActor != null
+            && !ownerActor.RoundCombatActive
+            && !ownerActor.AllowsIdleMotionWhileInactive)
+            return;
 
         if (!isPushing && !isDodging && !isBalancing)
             UpdateIdleMotion();
@@ -196,6 +203,9 @@ public class CombatMotionController : MonoBehaviour
             baseBodyLocalScale = bodyPivot.localScale;
             baseBodyLocalRot = bodyPivot.localRotation;
         }
+
+        if (ownerActor == null)
+            TryGetComponent(out ownerActor);
 
         initialized = true;
     }

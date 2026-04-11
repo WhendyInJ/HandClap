@@ -7,6 +7,7 @@ public enum RoundGameState
 {
     Boot,
     RoundActive,
+    RoundSettling,
     WaitingRoundChoice,
     WaitingRerollResolution,
     Victory,
@@ -29,14 +30,20 @@ public class RoundGameManager : MonoBehaviour
     [SerializeField] private Canvas roundChoiceCanvas;
     [SerializeField] private Canvas canvas_Slot;
 
-    [Header("다음 라운드 대기 UI")]
-    [Tooltip("비워두면 이벤트만 발생합니다. 연결된 텍스트가 있으면 남은 시간을 표시합니다.")]
+    [Header("공통 상태 텍스트 (nextRoundCountdownText)")]
+    [Tooltip("라운드 진행·소강·다음 라운드 대기 등을 한 곳에 표시합니다. 비우면 이벤트만 씁니다.")]
     [SerializeField] private TextMeshProUGUI nextRoundCountdownText;
-    [SerializeField] private string countdownTextFormat = "다음 라운드까지 {0}초";
+    private string statusRoundActiveFormat = "라운드 {0}/{1}<br>전투 종료까지 {2:00}초";
+    private string statusSettlingFormat = "라운드 {0}/{1}<br>선택 화면까지 {2:00}초";
+    private string statusWaitingChoiceFormat = "라운드 {0}/{1} 종료<br>힐 또는 리롤을 선택하세요";
+    private string statusIntermissionFormat = "다음 라운드 {0}/{1}<br>전투 시작까지 {2:00}초";
+    private string statusRerollFormat = "라운드 {0}/{1}<br>슬롯에서 빌드를 선택하세요";
 
     [Header("Round Rules")]
     [SerializeField] private float roundDurationSeconds = 30f;
     [SerializeField] private int totalRounds = 3;
+    [Tooltip("라운드 종료 후 선택 UI 전 소강 시간(초). RoundSettling 구간.")]
+    [SerializeField] private float roundSettlingSeconds = 1.5f;
     [SerializeField] private float rerollAutoCloseDelay = 3f;
     [SerializeField] private float nextRoundDelayAfterSlotClose = 5f;
 
@@ -57,6 +64,9 @@ public class RoundGameManager : MonoBehaviour
     public PlayerBuild CurrentBuild { get; private set; }
 
     Coroutine rerollFlowRoutine;
+    Coroutine roundSettleRoutine;
+
+    float settlingRemainingDisplay;
 
     void Reset()
     {
@@ -75,6 +85,7 @@ public class RoundGameManager : MonoBehaviour
         }
 
         ApplyRoundCombatActive(false);
+        ApplyBetweenRoundIdleMotion(false);
     }
 
     void Start()
@@ -101,7 +112,8 @@ public class RoundGameManager : MonoBehaviour
             rerollFlowRoutine = null;
         }
 
-        ClearIntermissionCountdownDisplay();
+        StopRoundSettleRoutine();
+        ClearNextRoundStatusDisplay();
         UnsubscribeEvents();
     }
 
@@ -118,8 +130,23 @@ public class RoundGameManager : MonoBehaviour
         RoundTimeRemaining = Mathf.Max(0f, RoundTimeRemaining - Time.deltaTime);
         RoundTimeChanged?.Invoke(RoundTimeRemaining, roundDurationSeconds);
 
-        if (RoundTimeRemaining <= 0f)
+        if (RoundTimeRemaining <= 0f && !AnyActorBlocksRoundTimeout())
             HandleRoundTimeout();
+
+        RefreshNextRoundStatusText();
+    }
+
+    bool AnyActorBlocksRoundTimeout()
+    {
+        TryAutoAssignReferences();
+
+        if (playerController != null && playerController.BlocksRoundTransition())
+            return true;
+
+        if (enemyController != null && enemyController.BlocksRoundTransition())
+            return true;
+
+        return false;
     }
 
     public void ChooseHeal()
@@ -164,6 +191,8 @@ public class RoundGameManager : MonoBehaviour
         if (roundNumber <= 0)
             roundNumber = 1;
 
+        StopRoundSettleRoutine();
+
         CurrentRound = roundNumber;
         Debug.Log($"=== Round {CurrentRound} 시작 ===");
         RoundTimeRemaining = roundDurationSeconds;
@@ -182,9 +211,9 @@ public class RoundGameManager : MonoBehaviour
         }
 
         SetState(RoundGameState.RoundActive);
-        ClearIntermissionCountdownDisplay();
         RoundStarted?.Invoke(CurrentRound, roundDurationSeconds);
         RoundTimeChanged?.Invoke(RoundTimeRemaining, roundDurationSeconds);
+        RefreshNextRoundStatusText();
     }
 
     void HandleRoundTimeout()
@@ -198,10 +227,62 @@ public class RoundGameManager : MonoBehaviour
             return;
         }
 
+        TryAutoAssignReferences();
+        StopRoundSettleRoutine();
+        settlingRemainingDisplay = Mathf.Max(0f, roundSettlingSeconds);
+        SetState(RoundGameState.RoundSettling);
+        RefreshNextRoundStatusText();
+        SetChoiceCanvasActive(false);
+        Debug.Log($"Round {CurrentRound} 종료. 소강 후 선택 UI.");
+        roundSettleRoutine = StartCoroutine(RoundSettleThenWaitingChoice());
+    }
+
+    IEnumerator RoundSettleThenWaitingChoice()
+    {
+        if (roundSettlingSeconds <= 0f)
+        {
+            roundSettleRoutine = null;
+
+            if (State != RoundGameState.RoundSettling)
+                yield break;
+
+            SetState(RoundGameState.WaitingRoundChoice);
+            SetChoiceCanvasActive(true);
+            Debug.Log($"Round {CurrentRound} 선택 대기.");
+            BetweenRoundsChoiceRequested?.Invoke(CurrentRound + 1, CurrentBuild, PlayerFailGaugeNormalized, 1f);
+            yield break;
+        }
+
+        settlingRemainingDisplay = roundSettlingSeconds;
+
+        while (settlingRemainingDisplay > 0f)
+        {
+            RefreshNextRoundStatusText();
+            yield return null;
+            settlingRemainingDisplay -= Time.deltaTime;
+        }
+
+        settlingRemainingDisplay = 0f;
+        RefreshNextRoundStatusText();
+
+        roundSettleRoutine = null;
+
+        if (State != RoundGameState.RoundSettling)
+            yield break;
+
         SetState(RoundGameState.WaitingRoundChoice);
         SetChoiceCanvasActive(true);
-        Debug.Log($"Round {CurrentRound} 종료. 플레이어 선택 대기.");
+        Debug.Log($"Round {CurrentRound} 선택 대기.");
         BetweenRoundsChoiceRequested?.Invoke(CurrentRound + 1, CurrentBuild, PlayerFailGaugeNormalized, 1f);
+    }
+
+    void StopRoundSettleRoutine()
+    {
+        if (roundSettleRoutine == null)
+            return;
+
+        StopCoroutine(roundSettleRoutine);
+        roundSettleRoutine = null;
     }
 
     void HandleEnemyDefeated()
@@ -270,7 +351,31 @@ public class RoundGameManager : MonoBehaviour
 
         State = newState;
         ApplyRoundCombatActive(newState == RoundGameState.RoundActive);
+        ApplyBetweenRoundIdleMotion(newState == RoundGameState.RoundSettling);
+
+        if (newState == RoundGameState.Victory || newState == RoundGameState.Defeat)
+            ClearNextRoundStatusDisplay();
+        else
+        {
+            if (newState == RoundGameState.RoundActive)
+                settlingRemainingDisplay = 0f;
+
+            if (newState == RoundGameState.RoundActive
+                || newState == RoundGameState.WaitingRoundChoice
+                || newState == RoundGameState.WaitingRerollResolution)
+                RefreshNextRoundStatusText();
+        }
+
         StateChanged?.Invoke(State);
+    }
+
+    void ApplyBetweenRoundIdleMotion(bool enabled)
+    {
+        if (playerController != null)
+            playerController.SetBetweenRoundIdleMotion(enabled);
+
+        if (enemyController != null)
+            enemyController.SetBetweenRoundIdleMotion(enabled);
     }
 
     void ApplyRoundCombatActive(bool active)
@@ -381,6 +486,7 @@ public class RoundGameManager : MonoBehaviour
     void ApplyValidation()
     {
         roundDurationSeconds = Mathf.Max(1f, roundDurationSeconds);
+        roundSettlingSeconds = Mathf.Max(0f, roundSettlingSeconds);
         totalRounds = Mathf.Max(1, totalRounds);
         rerollAutoCloseDelay = Mathf.Max(0f, rerollAutoCloseDelay);
         nextRoundDelayAfterSlotClose = Mathf.Max(0f, nextRoundDelayAfterSlotClose);
@@ -453,12 +559,61 @@ public class RoundGameManager : MonoBehaviour
             return;
 
         int sec = Mathf.Max(0, Mathf.CeilToInt(remainingSeconds));
-        nextRoundCountdownText.text = string.Format(countdownTextFormat, sec);
+        int nextRound = Mathf.Min(CurrentRound + 1, totalRounds);
+        nextRoundCountdownText.text = string.Format(statusIntermissionFormat, nextRound, totalRounds, sec);
     }
 
-    void ClearIntermissionCountdownDisplay()
+    void RefreshNextRoundStatusText()
+    {
+        if (nextRoundCountdownText == null)
+            return;
+
+        switch (State)
+        {
+            case RoundGameState.RoundActive:
+                int battleSec = Mathf.Max(0, Mathf.CeilToInt(RoundTimeRemaining));
+                nextRoundCountdownText.text = string.Format(
+                    statusRoundActiveFormat,
+                    CurrentRound,
+                    totalRounds,
+                    battleSec);
+                break;
+
+            case RoundGameState.RoundSettling:
+                int settleSec = Mathf.Max(0, Mathf.CeilToInt(settlingRemainingDisplay));
+                nextRoundCountdownText.text = string.Format(
+                    statusSettlingFormat,
+                    CurrentRound,
+                    totalRounds,
+                    settleSec);
+                break;
+
+            case RoundGameState.WaitingRoundChoice:
+                if (rerollFlowRoutine != null)
+                    return;
+
+                nextRoundCountdownText.text = string.Format(
+                    statusWaitingChoiceFormat,
+                    CurrentRound,
+                    totalRounds);
+                break;
+
+            case RoundGameState.WaitingRerollResolution:
+                if (rerollFlowRoutine != null)
+                    return;
+
+                nextRoundCountdownText.text = string.Format(statusRerollFormat, CurrentRound, totalRounds);
+                break;
+
+            default:
+                break;
+        }
+    }
+
+    void ClearNextRoundStatusDisplay()
     {
         NextRoundIntermissionTick?.Invoke(0f, 0f);
+        settlingRemainingDisplay = 0f;
 
         if (nextRoundCountdownText != null)
             nextRoundCountdownText.text = string.Empty;

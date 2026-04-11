@@ -936,7 +936,6 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1600789567}
-  - {fileID: 1140690237}
   m_Father: {fileID: 528401616}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 1}
@@ -1098,6 +1097,10 @@ GameObject:
   m_Component:
   - component: {fileID: 378955179}
   - component: {fileID: 378955180}
+  - component: {fileID: 378955183}
+  - component: {fileID: 378955182}
+  - component: {fileID: 378955181}
+  - component: {fileID: 378955184}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -1133,6 +1136,26 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7ffba0d7a38d4bb4da0a8f7fd6973ff2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
+  actorName: "\uD50C\uB808\uC774\uC5B4"
+  actorSide: 0
+  actorColorHex: '#4AA3FF'
+  opponentController: {fileID: 1452778063}
+  enableCombatDebugLogs: 1
+  stats: {fileID: 378955183}
+  health: {fileID: 378955182}
+  motion: {fileID: 378955181}
+--- !u!114 &378955181
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 378955177}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7d2e6b3e78cbc6a4b99719b7bba695cb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CombatMotionController
   bodyPivot: {fileID: 1793648469}
   handPivot: {fileID: 223912384}
   handVisual: {fileID: 417912333}
@@ -1154,31 +1177,71 @@ MonoBehaviour:
   holdDuration: 0.07
   retractDuration: 0.3
   cooldown: 0.35
-  dodgeDistance: 1.5
-  dodgeHeight: 0.25
-  dodgeLeanAngle: 20
+  dodgeDistance: 1.2
+  dodgeHeight: 0.35
+  dodgeLeanAngle: 18
   dodgeOutDuration: 0.14
-  dodgeHoldDuration: 0.15
+  dodgeHoldDuration: 0.08
   dodgeRecoverDuration: 0.22
-  balanceLeanBackAngle: 35
-  balanceWobbleAngle: 15
+  balanceLeanBackAngle: 14
+  balanceWobbleAngle: 9
   balanceEnterDuration: 0.12
   balanceWobbleTime: 0.9
   balanceRecoverTime: 0.18
   balanceWobbleCycles: 2.5
-  balanceHandSwingAngle: 28
-  balanceHandOffsetX: 0.5
-  balanceHandOffsetY: 0.1
-  balanceHandFlailCycles: 4
-  enableDebugInput: 1
+  balanceHandSwingAngle: 34
+  balanceHandOffsetX: 0.32
+  balanceHandOffsetY: 0.08
+  balanceHandFlailCycles: 3.2
+--- !u!114 &378955182
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 378955177}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 903f19f2f1e882a47b4e5ee452f256f0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CombatHealth
+  maxHealth: 5
+  resetOnAwake: 1
+  currentHealth: 0
+--- !u!114 &378955183
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 378955177}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f54e7ccb598b13143a81907cff110c4f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CombatActorStats
+  build:
+    Element: 0
+    BodyType: 1
+    HandSize: 1
+  baseAttackDamage: 1
+--- !u!114 &378955184
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 378955177}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9e2c89eb1c4a1da4c8ce7c2088010b26, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerInputController
+  actorController: {fileID: 378955180}
+  inputEnabled: 1
   pushKey: 32
   dodgeKey: 120
   balanceDebugKey: 99
-  actorName: "\uD50C\uB808\uC774\uC5B4"
-  actorSide: 0
-  actorColorHex: '#4AA3FF'
-  opponentController: {fileID: 1452778059}
-  enableCombatDebugLogs: 1
 --- !u!1 &417912332
 GameObject:
   m_ObjectHideFlags: 0
@@ -2182,7 +2245,7 @@ GameObject:
   m_Component:
   - component: {fileID: 818232199}
   - component: {fileID: 818232201}
-  - component: {fileID: 818232200}
+  - component: {fileID: 818232202}
   m_Layer: 0
   m_Name: EnemyLabel
   m_TagString: Untagged
@@ -2206,43 +2269,9 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 1}
   m_AnchorMax: {x: 0.5, y: 1}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: 3.7}
   m_SizeDelta: {x: 240, y: 34}
   m_Pivot: {x: 0.5, y: 1}
---- !u!114 &818232200
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 818232198}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5f7201a12d95ffc409449d95f23cf332, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Text
-  m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 1
-  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
-  m_Maskable: 1
-  m_OnCullStateChanged:
-    m_PersistentCalls:
-      m_Calls: []
-  m_FontData:
-    m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
-    m_FontSize: 28
-    m_FontStyle: 0
-    m_BestFit: 0
-    m_MinSize: 10
-    m_MaxSize: 40
-    m_Alignment: 4
-    m_AlignByGeometry: 0
-    m_RichText: 1
-    m_HorizontalOverflow: 1
-    m_VerticalOverflow: 1
-    m_LineSpacing: 1
-  m_Text: ENEMY HP
 --- !u!222 &818232201
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -2251,6 +2280,98 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 818232198}
   m_CullTransparentMesh: 1
+--- !u!114 &818232202
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 818232198}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TextMeshProUGUI
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_text: Enemy HP
+  m_isRightToLeft: 0
+  m_fontAsset: {fileID: 11400000, guid: 0708414a167724c42b3729781fd08b30, type: 2}
+  m_sharedMaterial: {fileID: 5938958204549438163, guid: 0708414a167724c42b3729781fd08b30, type: 2}
+  m_fontSharedMaterials: []
+  m_fontMaterial: {fileID: 0}
+  m_fontMaterials: []
+  m_fontColor32:
+    serializedVersion: 2
+    rgba: 4294967295
+  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
+  m_enableVertexGradient: 0
+  m_colorMode: 3
+  m_fontColorGradient:
+    topLeft: {r: 1, g: 1, b: 1, a: 1}
+    topRight: {r: 1, g: 1, b: 1, a: 1}
+    bottomLeft: {r: 1, g: 1, b: 1, a: 1}
+    bottomRight: {r: 1, g: 1, b: 1, a: 1}
+  m_fontColorGradientPreset: {fileID: 0}
+  m_spriteAsset: {fileID: 0}
+  m_tintAllSprites: 0
+  m_StyleSheet: {fileID: 0}
+  m_TextStyleHashCode: -1183493901
+  m_overrideHtmlColors: 0
+  m_faceColor:
+    serializedVersion: 2
+    rgba: 4294967295
+  m_fontSize: 36
+  m_fontSizeBase: 36
+  m_fontWeight: 400
+  m_enableAutoSizing: 0
+  m_fontSizeMin: 18
+  m_fontSizeMax: 72
+  m_fontStyle: 0
+  m_HorizontalAlignment: 2
+  m_VerticalAlignment: 512
+  m_textAlignment: 65535
+  m_characterSpacing: 0
+  m_characterHorizontalScale: 1
+  m_wordSpacing: 0
+  m_lineSpacing: 0
+  m_lineSpacingMax: 0
+  m_paragraphSpacing: 0
+  m_charWidthMaxAdj: 0
+  m_TextWrappingMode: 1
+  m_wordWrappingRatios: 0.4
+  m_overflowMode: 0
+  m_linkedTextComponent: {fileID: 0}
+  parentLinkedComponent: {fileID: 0}
+  m_enableKerning: 0
+  m_ActiveFontFeatures: 6e72656b
+  m_enableExtraPadding: 0
+  checkPaddingRequired: 0
+  m_isRichText: 1
+  m_EmojiFallbackSupport: 1
+  m_parseCtrlCharacters: 1
+  m_isOrthographic: 1
+  m_isCullingEnabled: 0
+  m_horizontalMapping: 0
+  m_verticalMapping: 0
+  m_uvLineOffset: 0
+  m_geometrySortingOrder: 0
+  m_IsTextObjectScaleStatic: 0
+  m_VertexBufferAutoSizeReduction: 0
+  m_useMaxVisibleDescender: 1
+  m_pageToDisplay: 1
+  m_margin: {x: 0, y: 0, z: 0, w: 0}
+  m_isUsingLegacyAnimationComponent: 0
+  m_isVolumetricText: 0
+  m_hasFontAssetChanged: 0
+  m_baseMaterial: {fileID: 0}
+  m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
 --- !u!1 &869838670
 GameObject:
   m_ObjectHideFlags: 0
@@ -2472,85 +2593,6 @@ CanvasRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1125693310}
-  m_CullTransparentMesh: 1
---- !u!1 &1140690236
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1140690237}
-  - component: {fileID: 1140690239}
-  - component: {fileID: 1140690238}
-  m_Layer: 0
-  m_Name: EnemyHealthValue
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 0
---- !u!224 &1140690237
-RectTransform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1140690236}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 312185291}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 1, y: 0.5}
-  m_AnchorMax: {x: 1, y: 0.5}
-  m_AnchoredPosition: {x: -10, y: 0}
-  m_SizeDelta: {x: 112, y: 24}
-  m_Pivot: {x: 1, y: 0.5}
---- !u!114 &1140690238
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1140690236}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5f7201a12d95ffc409449d95f23cf332, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Text
-  m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 1
-  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
-  m_Maskable: 1
-  m_OnCullStateChanged:
-    m_PersistentCalls:
-      m_Calls: []
-  m_FontData:
-    m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
-    m_FontSize: 18
-    m_FontStyle: 0
-    m_BestFit: 0
-    m_MinSize: 10
-    m_MaxSize: 40
-    m_Alignment: 5
-    m_AlignByGeometry: 0
-    m_RichText: 1
-    m_HorizontalOverflow: 1
-    m_VerticalOverflow: 1
-    m_LineSpacing: 1
-  m_Text: 850 / 1000
---- !u!222 &1140690239
-CanvasRenderer:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1140690236}
   m_CullTransparentMesh: 1
 --- !u!1 &1161209498
 GameObject:
@@ -2980,20 +3022,16 @@ MonoBehaviour:
   slotController: {fileID: 1094876528}
   battleUiController: {fileID: 2015795231}
   playerController: {fileID: 378955180}
-  enemyController: {fileID: 1452778059}
+  enemyController: {fileID: 1452778063}
   roundChoiceCanvas: {fileID: 1375808923}
   canvas_Slot: {fileID: 1094876531}
   nextRoundCountdownText: {fileID: 649047177}
   countdownTextFormat: "\uB2E4\uC74C \uB77C\uC6B4\uB4DC\uAE4C\uC9C0 {0}\uCD08"
-  roundDurationSeconds: 2
+  roundDurationSeconds: 5
   totalRounds: 3
   rerollAutoCloseDelay: 3
   nextRoundDelayAfterSlotClose: 5
-  playerMaxHealth: 5
-  playerStartHealth: 5
-  playerDamagePerEnemyHit: 1
-  playerDamageOnQteFail: 1
-  healAmountBetweenRounds: 2
+  failGaugeRecoveryBetweenRounds: 1
 --- !u!4 &1298235418
 Transform:
   m_ObjectHideFlags: 0
@@ -3759,8 +3797,11 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1452778057}
-  - component: {fileID: 1452778059}
+  - component: {fileID: 1452778063}
   - component: {fileID: 1452778058}
+  - component: {fileID: 1452778062}
+  - component: {fileID: 1452778061}
+  - component: {fileID: 1452778060}
   m_Layer: 0
   m_Name: Enemy
   m_TagString: Untagged
@@ -3809,7 +3850,7 @@ MonoBehaviour:
   idleWeight: 0.3
   dodgeWeight: 0.3
   enableAiDebugLogs: 1
---- !u!114 &1452778059
+--- !u!114 &1452778060
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -3818,9 +3859,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 1452778055}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7ffba0d7a38d4bb4da0a8f7fd6973ff2, type: 3}
+  m_Script: {fileID: 11500000, guid: 7d2e6b3e78cbc6a4b99719b7bba695cb, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PlayerController
+  m_EditorClassIdentifier: Assembly-CSharp::CombatMotionController
   bodyPivot: {fileID: 2128580670}
   handPivot: {fileID: 91668884}
   handVisual: {fileID: 1161209499}
@@ -3842,31 +3883,74 @@ MonoBehaviour:
   holdDuration: 0.07
   retractDuration: 0.3
   cooldown: 0.35
-  dodgeDistance: 1.5
-  dodgeHeight: 0.25
-  dodgeLeanAngle: 20
+  dodgeDistance: 1.2
+  dodgeHeight: 0.35
+  dodgeLeanAngle: 18
   dodgeOutDuration: 0.14
-  dodgeHoldDuration: 0.15
+  dodgeHoldDuration: 0.08
   dodgeRecoverDuration: 0.22
-  balanceLeanBackAngle: 35
-  balanceWobbleAngle: 15
+  balanceLeanBackAngle: 14
+  balanceWobbleAngle: 9
   balanceEnterDuration: 0.12
   balanceWobbleTime: 0.9
   balanceRecoverTime: 0.18
   balanceWobbleCycles: 2.5
-  balanceHandSwingAngle: 28
-  balanceHandOffsetX: 0.5
-  balanceHandOffsetY: 0.1
-  balanceHandFlailCycles: 4
-  enableDebugInput: 1
-  pushKey: 257
-  dodgeKey: 258
-  balanceDebugKey: 259
+  balanceHandSwingAngle: 34
+  balanceHandOffsetX: 0.32
+  balanceHandOffsetY: 0.08
+  balanceHandFlailCycles: 3.2
+--- !u!114 &1452778061
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1452778055}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 903f19f2f1e882a47b4e5ee452f256f0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CombatHealth
+  maxHealth: 5
+  resetOnAwake: 1
+  currentHealth: 5
+--- !u!114 &1452778062
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1452778055}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f54e7ccb598b13143a81907cff110c4f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CombatActorStats
+  build:
+    Element: 0
+    BodyType: 1
+    HandSize: 1
+  baseAttackDamage: 1
+--- !u!114 &1452778063
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1452778055}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a06b2cad95dbe404aa8fa5292793c42b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CombatActorController
   actorName: "\uC801"
   actorSide: 1
   actorColorHex: '#FF5C5C'
   opponentController: {fileID: 378955180}
   enableCombatDebugLogs: 1
+  stats: {fileID: 1452778062}
+  health: {fileID: 1452778061}
+  motion: {fileID: 1452778060}
 --- !u!1 &1518335063
 GameObject:
   m_ObjectHideFlags: 0
@@ -4781,11 +4865,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BattleUiController
   playerController: {fileID: 378955180}
-  enemyController: {fileID: 1452778059}
-  enemyHealth:
+  enemyController: {fileID: 1452778063}
+  playerStats: {fileID: 378955183}
+  enemyStats: {fileID: 1452778062}
+  enemyHealth: {fileID: 1452778061}
+  playerHealthUi:
+    fillImage: {fileID: 0}
+  enemyHealthUi:
     fillImage: {fileID: 1600789568}
-    maxHealth: 10
-    damagePerHit: 1
   playerQte:
     root: {fileID: 1981451467}
     failGaugeFill: {fileID: 262759859}
@@ -4800,6 +4887,7 @@ MonoBehaviour:
     overlapTolerance: 1
     failDrainPerSecond: 0.35
     recoverPerSecond: 0.65
+    failGaugeLossPerDamage: 0.2
     hideWhenInactive: 1
 --- !u!1 &2019027552
 GameObject:
