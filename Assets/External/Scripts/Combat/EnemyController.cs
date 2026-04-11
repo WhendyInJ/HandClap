@@ -1,33 +1,81 @@
+using System.Collections;
 using UnityEngine;
 
-public enum EnemyActionChoice
+// ─── AI State Enums ───────────────────────────────────────────────────────────
+
+public enum EnemyAIState
 {
     Idle,
-    Attack,
-    Dodge,
+    Reacting,
+    Acting,
 }
+
+/// <summary>플레이어 공격 감지 시 AI 반응 선택지</summary>
+public enum EnemyReactionChoice
+{
+    CounterAttack, // 받아치기
+    StayNeutral,   // 중립 유지
+    Dodge,         // 회피
+}
+
+/// <summary>AI가 먼저 행동할 때 선택지</summary>
+public enum EnemyActingChoice
+{
+    Attack,     // 공격
+    FakeAttack, // 페이크
+}
+
+// ─── EnemyController ──────────────────────────────────────────────────────────
 
 public class EnemyController : MonoBehaviour
 {
+    // ── Setup ──────────────────────────────────────────────────────────────────
+
     [Header("Enemy Setup")]
     [SerializeField] private CombatActorController targetController;
     [SerializeField] private Vector2 enemyPushDirection = Vector2.left;
+
+    [Header("Debug Input")]
     [SerializeField] private bool enableDebugInput;
-    [SerializeField] private KeyCode pushKey = KeyCode.Keypad1;
-    [SerializeField] private KeyCode dodgeKey = KeyCode.Keypad2;
+    [SerializeField] private KeyCode pushKey    = KeyCode.Keypad1;
+    [SerializeField] private KeyCode dodgeKey   = KeyCode.Keypad2;
     [SerializeField] private KeyCode balanceKey = KeyCode.Keypad3;
 
-    [Header("Simple AI")]
+    // ── AI Settings ────────────────────────────────────────────────────────────
+
+    [Header("AI")]
     [SerializeField] private bool enableAi = true;
-    [SerializeField] private float decisionIntervalMin = 1.2f;
-    [SerializeField] private float decisionIntervalMax = 2f;
-    [SerializeField] private float attackWeight = 0.4f;
-    [SerializeField] private float idleWeight = 0.3f;
-    [SerializeField] private float dodgeWeight = 0.3f;
     [SerializeField] private bool enableAiDebugLogs = true;
 
+    [Header("Action Cooldown (Idle → Acting)")]
+    [Tooltip("대기 상태에서 AI가 먼저 행동을 취하기까지의 쿨타임 범위(초)")]
+    [SerializeField] private float actionCooldownMin = 1.2f;
+    [SerializeField] private float actionCooldownMax = 2.5f;
+
+    [Header("Recovery Delay (state ends → back to Idle)")]
+    [Tooltip("반응/행동이 끝난 뒤 대기 상태로 돌아가기까지의 짧은 대기 시간(초)")]
+    [SerializeField] private float recoveryDelay = 0.25f;
+
+    [Header("Reaction Weights (플레이어 공격 감지 → 반응 선택)")]
+    [SerializeField, Min(0f)] private float reactCounterAttackWeight = 0.4f;
+    [SerializeField, Min(0f)] private float reactStayNeutralWeight   = 0.3f;
+    [SerializeField, Min(0f)] private float reactDodgeWeight         = 0.3f;
+
+    [Header("Acting Weights (AI 선공 → 행동 선택)")]
+    [SerializeField, Min(0f)] private float actAttackWeight     = 0.6f;
+    [SerializeField, Min(0f)] private float actFakeAttackWeight = 0.4f;
+    // 페인트 모션 타이밍은 CombatMotionController의 "Feint Attack" 헤더에서 조절
+
+    // ── Runtime State ──────────────────────────────────────────────────────────
+
     private CombatActorController actorController;
-    private float nextDecisionDelay;
+    private EnemyAIState currentAiState = EnemyAIState.Idle;
+    private Coroutine aiStateRoutine;
+    private float actionCooldownTimer;
+    private bool playerWasAttacking;
+    private bool wasRoundCombatActive;
+
+    // ── Public API ─────────────────────────────────────────────────────────────
 
     public CombatActorController ActorController
     {
@@ -39,6 +87,13 @@ public class EnemyController : MonoBehaviour
     }
 
     public CombatActorController TargetController => targetController;
+    public EnemyAIState CurrentAIState => currentAiState;
+
+    public bool TryPush()         => actorController != null && actorController.TryPush();
+    public bool TryDodge()        => actorController != null && actorController.TryDodge();
+    public bool TryBalanceDebug() => actorController != null && actorController.TryBalanceDebug();
+
+    // ── Unity Lifecycle ────────────────────────────────────────────────────────
 
     void Reset()
     {
@@ -54,49 +109,295 @@ public class EnemyController : MonoBehaviour
 
     void OnEnable()
     {
-        ResetDecisionDelay();
+        ResetActionCooldown();
+        wasRoundCombatActive = actorController != null && actorController.RoundCombatActive;
+    }
+
+    void OnDisable()
+    {
+        if (aiStateRoutine != null)
+        {
+            StopCoroutine(aiStateRoutine);
+            aiStateRoutine = null;
+        }
     }
 
     void OnValidate()
     {
         EnsureActorController(false);
         ApplySetup();
-        decisionIntervalMin = Mathf.Max(0.1f, decisionIntervalMin);
-        decisionIntervalMax = Mathf.Max(decisionIntervalMin, decisionIntervalMax);
-        attackWeight = Mathf.Max(0f, attackWeight);
-        idleWeight = Mathf.Max(0f, idleWeight);
-        dodgeWeight = Mathf.Max(0f, dodgeWeight);
+        actionCooldownMin = Mathf.Max(0.1f, actionCooldownMin);
+        actionCooldownMax = Mathf.Max(actionCooldownMin, actionCooldownMax);
+        recoveryDelay     = Mathf.Max(0f, recoveryDelay);
     }
 
     void Update()
     {
-        UpdateDebugInput();
+        HandleDebugInput();
 
-        if (!enableAi || actorController == null || !actorController.CanAttemptDecision)
+        bool isRoundCombatActive = actorController != null && actorController.RoundCombatActive;
+        if (isRoundCombatActive && !wasRoundCombatActive)
+            HandleCombatResumed();
+
+        wasRoundCombatActive = isRoundCombatActive;
+
+        if (!enableAi || actorController == null || !isRoundCombatActive)
             return;
 
-        nextDecisionDelay -= Time.deltaTime;
-        if (nextDecisionDelay > 0f)
+        // 쿨타임은 비-Idle 상태에서도 계속 진행
+        // → 반응이 끝나고 Idle로 돌아왔을 때 바로 행동 상태로 진입 가능
+        TickActionCooldown();
+
+        if (currentAiState == EnemyAIState.Idle)
+            UpdateIdleState();
+    }
+
+    // ── Idle State ─────────────────────────────────────────────────────────────
+
+    void UpdateIdleState()
+    {
+        // 플레이어 공격 시작(상승 에지) 감지
+        bool playerIsAttacking  = IsPlayerAttacking();
+        bool playerJustAttacked = !playerWasAttacking && playerIsAttacking;
+        playerWasAttacking = playerIsAttacking;
+
+        // 우선순위 1: 플레이어 공격 감지 → 반응
+        if (playerJustAttacked && actorController.CanAttemptDecision)
+        {
+            EnterReacting();
+            return;
+        }
+
+        // 우선순위 2: 행동 쿨타임 만료 → AI 선공
+        if (actionCooldownTimer <= 0f && actorController.CanAttemptDecision)
+        {
+            EnterActing();
+        }
+    }
+
+    // ── State: Reacting ────────────────────────────────────────────────────────
+
+    void EnterReacting()
+    {
+        SetState(EnemyAIState.Reacting);
+        StartAiStateRoutine(RunReacting());
+    }
+
+    IEnumerator RunReacting()
+    {
+        EnemyReactionChoice reaction = RollReaction();
+        LogAI("반응", ReactionLabel(reaction), ReactionToCombatState(reaction));
+        ExecuteReaction(reaction);
+
+        yield return WaitForMotionEnd();
+
+        if (!IsAiActive())
+        {
+            AbortAiStateRoutine();
+            yield break;
+        }
+
+        yield return new WaitForSeconds(recoveryDelay);
+        ReturnToIdle();
+        aiStateRoutine = null;
+    }
+
+    void ExecuteReaction(EnemyReactionChoice reaction)
+    {
+        switch (reaction)
+        {
+            case EnemyReactionChoice.CounterAttack:
+                actorController.TryPush();
+                break;
+            case EnemyReactionChoice.Dodge:
+                actorController.TryDodge();
+                break;
+            case EnemyReactionChoice.StayNeutral:
+                actorController.TryStayNeutral();
+                break;
+        }
+    }
+
+    // ── State: Acting ──────────────────────────────────────────────────────────
+
+    void EnterActing()
+    {
+        SetState(EnemyAIState.Acting);
+        ResetActionCooldown();
+        StartAiStateRoutine(RunActing());
+    }
+
+    IEnumerator RunActing()
+    {
+        EnemyActingChoice action = RollAction();
+        LogAI("행동", ActionLabel(action), ActionToCombatState(action));
+
+        ExecuteActing(action);
+        yield return WaitForMotionEnd();
+
+        if (!IsAiActive())
+        {
+            AbortAiStateRoutine();
+            yield break;
+        }
+
+        yield return new WaitForSeconds(recoveryDelay);
+        ReturnToIdle();
+        aiStateRoutine = null;
+    }
+
+    void ExecuteActing(EnemyActingChoice action)
+    {
+        if (action == EnemyActingChoice.FakeAttack)
+            actorController.TryFeintAttack(); // 뻗기→회수 독립 페인트 모션
+        else
+            actorController.TryPush();
+    }
+
+    // ── Shared Helpers ─────────────────────────────────────────────────────────
+
+    /// <summary>현재 모션이 완전히 끝나 다음 행동이 가능해질 때까지 대기</summary>
+    IEnumerator WaitForMotionEnd()
+    {
+        yield return new WaitUntil(() =>
+            actorController == null ||
+            !actorController.RoundCombatActive ||
+            actorController.CanAttemptDecision);
+    }
+
+    void ReturnToIdle()
+    {
+        SetState(EnemyAIState.Idle);
+    }
+
+    void HandleCombatResumed()
+    {
+        if (currentAiState != EnemyAIState.Idle)
+            ReturnToIdle();
+
+        playerWasAttacking = IsPlayerAttacking();
+        ResetActionCooldown();
+    }
+
+    void StartAiStateRoutine(IEnumerator routine)
+    {
+        if (aiStateRoutine != null)
+            StopCoroutine(aiStateRoutine);
+
+        aiStateRoutine = StartCoroutine(routine);
+    }
+
+    void AbortAiStateRoutine()
+    {
+        ReturnToIdle();
+        aiStateRoutine = null;
+    }
+
+    void SetState(EnemyAIState newState)
+    {
+        if (currentAiState == newState)
             return;
 
-        ExecuteAiDecision();
-        ResetDecisionDelay();
+        if (enableAiDebugLogs)
+            Debug.Log($"[AI] 상태: {currentAiState} → {newState}", this);
+
+        currentAiState = newState;
     }
 
-    public bool TryPush()
+    void TickActionCooldown()
     {
-        return actorController != null && actorController.TryPush();
+        if (actionCooldownTimer > 0f)
+            actionCooldownTimer -= Time.deltaTime;
     }
 
-    public bool TryDodge()
+    bool IsPlayerAttacking() =>
+        targetController != null &&
+        targetController.CurrentCombatState == CombatState.Attack;
+
+    bool IsAiActive() =>
+        enableAi && actorController != null && actorController.RoundCombatActive;
+
+    void ResetActionCooldown() =>
+        actionCooldownTimer = Random.Range(actionCooldownMin, actionCooldownMax);
+
+    // ── Probability Rolls ──────────────────────────────────────────────────────
+
+    EnemyReactionChoice RollReaction()
     {
-        return actorController != null && actorController.TryDodge();
+        float total = reactCounterAttackWeight + reactStayNeutralWeight + reactDodgeWeight;
+        if (total <= 0f)
+            return EnemyReactionChoice.StayNeutral;
+
+        float roll = Random.value * total;
+
+        if (roll < reactCounterAttackWeight) return EnemyReactionChoice.CounterAttack;
+        roll -= reactCounterAttackWeight;
+        if (roll < reactStayNeutralWeight)   return EnemyReactionChoice.StayNeutral;
+        return EnemyReactionChoice.Dodge;
     }
 
-    public bool TryBalanceDebug()
+    EnemyActingChoice RollAction()
     {
-        return actorController != null && actorController.TryBalanceDebug();
+        float total = actAttackWeight + actFakeAttackWeight;
+        if (total <= 0f)
+            return EnemyActingChoice.Attack;
+
+        return Random.value * total < actAttackWeight
+            ? EnemyActingChoice.Attack
+            : EnemyActingChoice.FakeAttack;
     }
+
+    // ── Debug Logging ──────────────────────────────────────────────────────────
+
+    void LogAI(string phase, string choiceLabel, CombatState actorState)
+    {
+        if (!enableAiDebugLogs || actorController == null)
+            return;
+
+        CombatState opponentState = targetController != null
+            ? targetController.ResolutionCombatState
+            : CombatState.Neutral;
+
+        string lane = actorController.BuildCombatLane(targetController, actorState, opponentState);
+        Debug.Log($"[AI] {lane}  {phase}:{choiceLabel}", this);
+    }
+
+    static string ReactionLabel(EnemyReactionChoice r) => r switch
+    {
+        EnemyReactionChoice.CounterAttack => "받아치기",
+        EnemyReactionChoice.Dodge         => "회피",
+        _                                 => "중립 유지",
+    };
+
+    static string ActionLabel(EnemyActingChoice a) => a switch
+    {
+        EnemyActingChoice.FakeAttack => "페이크",
+        _                            => "공격",
+    };
+
+    static CombatState ReactionToCombatState(EnemyReactionChoice r) => r switch
+    {
+        EnemyReactionChoice.CounterAttack => CombatState.Attack,
+        EnemyReactionChoice.Dodge         => CombatState.Dodge,
+        _                                 => CombatState.Neutral,
+    };
+
+    static CombatState ActionToCombatState(EnemyActingChoice a) =>
+        CombatState.Attack; // Attack과 FakeAttack 모두 공격 모션으로 시작
+
+    // ── Debug Input ────────────────────────────────────────────────────────────
+
+    void HandleDebugInput()
+    {
+        if (!enableDebugInput || actorController == null)
+            return;
+
+        if (Input.GetKeyDown(pushKey))    actorController.TryPush();
+        if (Input.GetKeyDown(dodgeKey))   actorController.TryDodge();
+        if (Input.GetKeyDown(balanceKey)) actorController.TryBalanceDebug();
+    }
+
+    // ── Setup Infrastructure ───────────────────────────────────────────────────
 
     void ApplySetup()
     {
@@ -109,12 +410,12 @@ public class EnemyController : MonoBehaviour
             targetController = FindPlayerTarget();
 
         actorController.SetPushDirection(enemyPushDirection);
-        actorController.SetCombatPresentation(CombatActorSide.Enemy, "\uC801", "#FF5C5C");
+        actorController.SetCombatPresentation(CombatActorSide.Enemy, "적", "#FF5C5C");
         actorController.SetOpponent(targetController);
 
         if (targetController != null)
         {
-            targetController.SetCombatPresentation(CombatActorSide.Player, "\uD50C\uB808\uC774\uC5B4", "#4AA3FF");
+            targetController.SetCombatPresentation(CombatActorSide.Player, "플레이어", "#4AA3FF");
 
             if (targetController.OpponentController == null)
                 targetController.SetOpponent(actorController);
@@ -131,7 +432,9 @@ public class EnemyController : MonoBehaviour
 
     CombatActorController FindPlayerTarget()
     {
-        CombatActorController[] actors = FindObjectsByType<CombatActorController>(FindObjectsSortMode.None);
+        CombatActorController[] actors =
+            FindObjectsByType<CombatActorController>(FindObjectsSortMode.None);
+
         for (int i = 0; i < actors.Length; i++)
         {
             CombatActorController actor = actors[i];
@@ -143,95 +446,5 @@ public class EnemyController : MonoBehaviour
         }
 
         return null;
-    }
-
-    void UpdateDebugInput()
-    {
-        if (!enableDebugInput || actorController == null)
-            return;
-
-        if (Input.GetKeyDown(pushKey))
-            actorController.TryPush();
-
-        if (Input.GetKeyDown(dodgeKey))
-            actorController.TryDodge();
-
-        if (Input.GetKeyDown(balanceKey))
-            actorController.TryBalanceDebug();
-    }
-
-    void ExecuteAiDecision()
-    {
-        EnemyActionChoice action = PickNextAction();
-
-        if (enableAiDebugLogs)
-        {
-            string lane = actorController.BuildCombatLane(
-                targetController,
-                ToCombatState(action),
-                targetController != null ? targetController.ResolutionCombatState : CombatState.Neutral);
-
-            Debug.Log(
-                $"[AI] {lane}  \uC120\uD0DD:{ToDisplayName(action)}",
-                this);
-        }
-
-        switch (action)
-        {
-            case EnemyActionChoice.Attack:
-                actorController.TryPush();
-                break;
-
-            case EnemyActionChoice.Dodge:
-                actorController.TryDodge();
-                break;
-
-            default:
-                actorController.TryStayNeutral();
-                break;
-        }
-    }
-
-    EnemyActionChoice PickNextAction()
-    {
-        float totalWeight = attackWeight + idleWeight + dodgeWeight;
-        if (totalWeight <= 0f)
-            return EnemyActionChoice.Idle;
-
-        float roll = Random.value * totalWeight;
-
-        if (roll < attackWeight)
-            return EnemyActionChoice.Attack;
-
-        roll -= attackWeight;
-        if (roll < idleWeight)
-            return EnemyActionChoice.Idle;
-
-        return EnemyActionChoice.Dodge;
-    }
-
-    void ResetDecisionDelay()
-    {
-        nextDecisionDelay = Random.Range(decisionIntervalMin, decisionIntervalMax);
-    }
-
-    static string ToDisplayName(EnemyActionChoice action)
-    {
-        return action switch
-        {
-            EnemyActionChoice.Attack => "\uACF5\uACA9",
-            EnemyActionChoice.Dodge => "\uD68C\uD53C",
-            _ => "\uAC00\uB9CC\uD788",
-        };
-    }
-
-    static CombatState ToCombatState(EnemyActionChoice action)
-    {
-        return action switch
-        {
-            EnemyActionChoice.Attack => CombatState.Attack,
-            EnemyActionChoice.Dodge => CombatState.Dodge,
-            _ => CombatState.Neutral,
-        };
     }
 }

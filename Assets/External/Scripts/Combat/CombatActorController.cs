@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using UnityEngine;
 
 [RequireComponent(typeof(CombatActorStats))]
@@ -50,7 +51,56 @@ public class CombatActorController : MonoBehaviour
 
     public bool TryPush()
     {
+        if (TryFakeAttack())
+            return true;
+
         return QueueDecision(CombatState.Attack);
+    }
+
+    public bool TryFakeAttack()
+    {
+        if (!roundCombatActive || Motion == null || !Motion.TryPlayFakeAttack())
+            return false;
+
+        hasQueuedDecision = false;
+
+        CombatState opponentState = opponentController != null
+            ? opponentController.ResolutionCombatState
+            : CombatState.Neutral;
+        const string summary = "페이크 공격";
+
+        LogCombatOutcome(CombatState.Attack, opponentState, summary);
+        RaiseCombatEvent(
+            CombatEventKind.AttackFeinted,
+            opponentController,
+            CombatState.Attack,
+            opponentState,
+            summary);
+        return true;
+    }
+
+    /// <summary>
+    /// 팔을 뻗었다가 회수하는 페인트 모션을 재생한다 (AI 선공 페이크 전용).
+    /// DoPush 취소 방식이 아닌 독립 모션이므로 뻗기/회수가 명확하게 보인다.
+    /// </summary>
+    public bool TryFeintAttack()
+    {
+        if (!roundCombatActive || Motion == null || !Motion.TryPlayFeintAttack(GetAttackCooldownDuration()))
+            return false;
+
+        CombatState opponentState = opponentController != null
+            ? opponentController.ResolutionCombatState
+            : CombatState.Neutral;
+        const string summary = "페인트 공격";
+
+        LogCombatOutcome(CombatState.Attack, opponentState, summary);
+        RaiseCombatEvent(
+            CombatEventKind.AttackFeinted,
+            opponentController,
+            CombatState.Attack,
+            opponentState,
+            summary);
+        return true;
     }
 
     public bool TryDodge()
@@ -67,6 +117,30 @@ public class CombatActorController : MonoBehaviour
     {
         return QueueDecision(CombatState.Neutral);
     }
+
+    /// <summary>
+    /// 즉시 휘청거림 시작. CanStartMotion이 아니면 false 반환.
+    /// duration &lt;= 0 이면 StopStagger() 호출 시까지 무한 유지.
+    /// </summary>
+    public bool TryPlayStagger(float duration, bool leanForward = false, Action finishedCallback = null)
+        => Motion != null && Motion.TryPlayStagger(duration, leanForward, finishedCallback);
+
+    /// <summary>
+    /// 현재 모션이 끝나는 즉시 휘청거림 시작 (페이크 응징 등 모션 중 요청 시 사용).
+    /// </summary>
+    public void RequestStagger(float duration, bool leanForward = false, Action finishedCallback = null)
+    {
+        if (Motion == null)
+            return;
+
+        if (Motion.TryPlayStagger(duration, leanForward, finishedCallback))
+            return;
+
+        StartCoroutine(WaitAndStagger(duration, leanForward, finishedCallback));
+    }
+
+    /// <summary>무한 스태거 종료. 복귀 애니메이션은 자동 재생.</summary>
+    public void StopStagger() => Motion?.StopStagger();
 
     public void SetPushDirection(Vector2 direction)
     {
@@ -109,14 +183,22 @@ public class CombatActorController : MonoBehaviour
             inputController.SetInputEnabled(false);
     }
 
+    public bool IsStaggered => Motion != null && Motion.IsStaggered;
+
     public CombatState CurrentCombatState =>
-        Motion != null && Motion.IsPushing ? CombatState.Attack :
+        Motion != null && Motion.IsPushing && !Motion.IsAttackFeinted ? CombatState.Attack :
         Motion != null && Motion.IsDodging ? CombatState.Dodge :
         CombatState.Neutral;
 
     public CombatState ResolutionCombatState => hasQueuedDecision ? queuedDecisionState : CurrentCombatState;
     public bool IsAttackClashWindowActive => Motion != null && Motion.IsAttackClashWindowActive;
+    public bool CanFakeAttack => roundCombatActive && Motion != null && Motion.CanFakeAttack;
     public bool IsDodgeWindowActive => Motion != null && Motion.IsDodging;
+    /// <summary>
+    /// 현재 페인트(페이크/페인트 모션) 중인지 여부.
+    /// 플레이어 페이크 취소(PlayFakeAttackRecovery)와 AI 페인트 모션(DoFeintAttack) 모두 해당.
+    /// </summary>
+    public bool IsFeinting => Motion != null && Motion.IsPushing && Motion.IsAttackFeinted;
     public bool CanAttemptDecision => roundCombatActive && !hasQueuedDecision && Motion != null && Motion.CanStartMotion;
 
     public CombatActorSide ActorSide => actorSide;
@@ -167,6 +249,18 @@ public class CombatActorController : MonoBehaviour
     string CombatColorHex => string.IsNullOrWhiteSpace(actorColorHex)
         ? actorSide == CombatActorSide.Player ? "#4AA3FF" : "#FF5C5C"
         : actorColorHex;
+
+    IEnumerator WaitAndStagger(float duration, bool leanForward, Action finishedCallback)
+    {
+        // 현재 모션(push/dodge/balance)이 끝날 때까지 대기 (cooldown은 무시)
+        yield return new WaitUntil(() =>
+            Motion == null ||
+            !roundCombatActive ||
+            (!Motion.IsPushing && !Motion.IsDodging && !Motion.IsBalancing && !Motion.IsStaggered));
+
+        if (roundCombatActive && Motion != null)
+            Motion.TryPlayStagger(duration, leanForward, finishedCallback);
+    }
 
     void CacheComponents()
     {
@@ -241,11 +335,25 @@ public class CombatActorController : MonoBehaviour
             return;
         }
 
+        // 상대가 페인트 동작 중이라면 별도 이벤트로 분기
+        if (opponentController != null && opponentController.IsFeinting)
+        {
+            const string feintPunishSummary = "페인트 응징";
+            LogCombatOutcome(CombatState.Attack, CombatState.Neutral, feintPunishSummary);
+            RaiseCombatEvent(
+                CombatEventKind.FeintPunished,
+                opponentController,
+                CombatState.Attack,
+                CombatState.Neutral,
+                feintPunishSummary);
+            return;
+        }
+
         CombatState opponentState = opponentController != null
             ? opponentController.ResolutionCombatState
             : CombatState.Neutral;
 
-        const string hitSummary = "\uACF5\uACA9 \uC801\uC911";
+        const string hitSummary = "공격 적중";
         LogCombatOutcome(CombatState.Attack, opponentState, hitSummary);
         RaiseCombatEvent(
             CombatEventKind.AttackHit,

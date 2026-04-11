@@ -14,6 +14,7 @@ public class BattleUiController : MonoBehaviour
     private class HealthUiBinding
     {
         public Image fillImage;
+        public Image maxHpCapFill;
     }
 
     [Serializable]
@@ -22,6 +23,7 @@ public class BattleUiController : MonoBehaviour
         public GameObject root;
         public Image failGaugeFill;
         public Image recoverGaugeFill;
+        public Image maxHpCapFill;
         public RectTransform track;
         public RectTransform movingBar;
         public RectTransform inputBox;
@@ -33,7 +35,7 @@ public class BattleUiController : MonoBehaviour
         [Min(0f)] public float failDrainPerSecond = 0.35f;
         [Min(0f)] public float recoverPerSecond = 0.65f;
         [Min(0f)] public float failGaugeLossPerDamage = 0.2f;
-        public bool hideWhenInactive = true;
+        public bool hideWhenInactive = false;
     }
 
     [Header("Combat Targets")]
@@ -50,6 +52,12 @@ public class BattleUiController : MonoBehaviour
     [Header("Player QTE")]
     [SerializeField] private PlayerQteUiBinding playerQte = new PlayerQteUiBinding();
 
+    [Header("Stagger")]
+    [SerializeField, Min(0f)] private float enemyStaggerDuration = 2.0f;
+    [SerializeField, Min(1f)] private float staggerBonusDamageMultiplier = 1.5f;
+    [SerializeField, Range(0f, 0.5f)] private float dodgeFailGaugePenalty = 0.1f;
+
+    private float playerMaxHpNormalized = 1f;
     private float currentFailGauge;
     private float currentRecoverGauge;
     private float lastPlayerDamageTaken;
@@ -60,11 +68,16 @@ public class BattleUiController : MonoBehaviour
     public event Action EnemyDefeated;
 
     public bool IsPlayerQteActive => isPlayerQteActive;
-    public float PlayerHealthNormalized => FailGaugeNormalized;
+    public float PlayerHealthNormalized => isPlayerQteActive ? currentFailGauge : playerMaxHpNormalized;
+    public float PlayerMaxHpNormalized => playerMaxHpNormalized;
     public float EnemyHealthNormalized => enemyHealth != null ? enemyHealth.Normalized : 0f;
     public float FailGaugeNormalized => currentFailGauge;
     public float RecoverGaugeNormalized => currentRecoverGauge;
     public float LastPlayerDamageTaken => lastPlayerDamageTaken;
+    public CombatActorController PlayerController => playerController;
+    public CombatActorController EnemyController => enemyController;
+    public CombatActorStats PlayerStats => playerStats;
+    public CombatActorStats EnemyStats => enemyStats;
 
     void Reset()
     {
@@ -77,6 +90,7 @@ public class BattleUiController : MonoBehaviour
     {
         TryAutoAssignControllers();
         TryAutoAssignCombatComponents();
+        playerMaxHpNormalized = 1f;
         currentFailGauge = 1f;
         currentRecoverGauge = 0f;
         ApplyImmediateUiState();
@@ -104,6 +118,9 @@ public class BattleUiController : MonoBehaviour
         playerQte.failDrainPerSecond = Mathf.Max(0f, playerQte.failDrainPerSecond);
         playerQte.recoverPerSecond = Mathf.Max(0f, playerQte.recoverPerSecond);
         playerQte.failGaugeLossPerDamage = Mathf.Max(0f, playerQte.failGaugeLossPerDamage);
+        enemyStaggerDuration = Mathf.Max(0f, enemyStaggerDuration);
+        staggerBonusDamageMultiplier = Mathf.Max(1f, staggerBonusDamageMultiplier);
+        dodgeFailGaugePenalty = Mathf.Clamp(dodgeFailGaugePenalty, 0f, 0.5f);
 
         if (!Application.isPlaying)
             ApplyImmediateUiState();
@@ -138,6 +155,7 @@ public class BattleUiController : MonoBehaviour
 
     public void ResetPlayerFailGauge()
     {
+        playerMaxHpNormalized = 1f;
         currentFailGauge = 1f;
         currentRecoverGauge = 0f;
         UpdatePlayerHealthUi();
@@ -149,30 +167,40 @@ public class BattleUiController : MonoBehaviour
         if (normalizedAmount <= 0f)
             return;
 
-        currentFailGauge = Mathf.Clamp01(currentFailGauge + normalizedAmount);
+        playerMaxHpNormalized = Mathf.Clamp01(playerMaxHpNormalized + normalizedAmount);
         UpdatePlayerHealthUi();
         UpdateQteGaugeUi();
     }
 
     public void StartPlayerQte()
     {
-        StartPlayerQte(0f);
+        StartPlayerQte(0f, leanForward: false);
     }
 
     public void StartPlayerQte(float incomingDamage)
+    {
+        StartPlayerQte(incomingDamage, leanForward: false);
+    }
+
+    public void StartPlayerQte(float incomingDamage, bool leanForward)
     {
         if (isPlayerQteActive)
             return;
 
         isPlayerQteActive = true;
         lastPlayerDamageTaken = Mathf.Max(0f, incomingDamage);
-        currentFailGauge = Mathf.Clamp01(currentFailGauge - lastPlayerDamageTaken * playerQte.failGaugeLossPerDamage);
+        playerMaxHpNormalized = Mathf.Clamp01(
+            playerMaxHpNormalized - lastPlayerDamageTaken * playerQte.failGaugeLossPerDamage);
+        currentFailGauge = playerMaxHpNormalized;
         currentRecoverGauge = 0f;
         qteBarDirection = 1f;
 
         ResetQtePositions();
         UpdateQteGaugeUi();
         ApplyQteVisibility();
+
+        if (playerController != null)
+            playerController.RequestStagger(0f, leanForward);
 
         if (currentFailGauge <= 0f)
             StopPlayerQte(QteEndReason.Fail);
@@ -184,20 +212,50 @@ public class BattleUiController : MonoBehaviour
             return;
 
         isPlayerQteActive = false;
+
+        if (playerController != null)
+            playerController.StopStagger();
+
+        if (endReason == QteEndReason.Success)
+        {
+            currentFailGauge = playerMaxHpNormalized;
+            UpdateQteGaugeUi();
+        }
+
         ApplyQteVisibility();
+        UpdatePlayerHealthUi();
         PlayerQteEnded?.Invoke(endReason);
     }
 
     void HandleCombatEvent(CombatEventData eventData)
     {
-        if (eventData.Kind != CombatEventKind.AttackHit)
-            return;
+        switch (eventData.Kind)
+        {
+            case CombatEventKind.AttackHit:
+                HandleAttackHit(eventData);
+                break;
+            case CombatEventKind.AttackDodged:
+                HandleAttackDodged(eventData);
+                break;
+            case CombatEventKind.DodgeFailed:
+                HandleDodgeFailed(eventData);
+                break;
+            case CombatEventKind.FeintPunished:
+                HandleFeintPunished(eventData);
+                break;
+        }
+    }
 
+    void HandleAttackHit(CombatEventData eventData)
+    {
         if (eventData.Actor == playerController && eventData.Opponent == enemyController)
         {
             float finalDamage = playerStats != null
                 ? playerStats.CalculateDamageToEnemy(enemyStats)
                 : 0f;
+
+            if (enemyController != null && enemyController.IsStaggered)
+                finalDamage *= staggerBonusDamageMultiplier;
 
             if (enemyHealth != null)
                 enemyHealth.ApplyDamage(finalDamage);
@@ -212,7 +270,74 @@ public class BattleUiController : MonoBehaviour
                 ? enemyStats.CalculateDamageToPlayer(playerStats)
                 : 0f;
 
+            ApplyPlayerDamage(finalDamage);
+        }
+    }
+
+    public void ApplyPlayerDamage(float damage)
+    {
+        if (damage <= 0f)
+            return;
+
+        playerMaxHpNormalized = Mathf.Clamp01(
+            playerMaxHpNormalized - damage * playerQte.failGaugeLossPerDamage);
+        currentFailGauge = playerMaxHpNormalized;
+        UpdatePlayerHealthUi();
+        UpdateQteGaugeUi();
+
+        if (playerMaxHpNormalized <= 0f)
+            PlayerQteEnded?.Invoke(QteEndReason.Fail);
+    }
+
+    void HandleAttackDodged(CombatEventData eventData)
+    {
+        if (eventData.Actor == playerController)
+        {
+            StartPlayerQte(0f, leanForward: true);
+            return;
+        }
+
+        if (eventData.Actor == enemyController && enemyController != null)
+            enemyController.RequestStagger(enemyStaggerDuration, leanForward: true);
+    }
+
+    void HandleDodgeFailed(CombatEventData eventData)
+    {
+        if (eventData.Actor == playerController)
+        {
+            StartPlayerQte(dodgeFailGaugePenalty / Mathf.Max(0.01f, playerQte.failGaugeLossPerDamage));
+            return;
+        }
+
+        if (eventData.Actor == enemyController && enemyController != null)
+            enemyController.RequestStagger(enemyStaggerDuration);
+    }
+
+    void HandleFeintPunished(CombatEventData eventData)
+    {
+        if (eventData.Opponent == playerController)
+        {
+            float finalDamage = enemyStats != null
+                ? enemyStats.CalculateDamageToPlayer(playerStats)
+                : 0f;
+
             StartPlayerQte(finalDamage);
+            return;
+        }
+
+        if (eventData.Opponent == enemyController)
+        {
+            float finalDamage = playerStats != null
+                ? playerStats.CalculateDamageToEnemy(enemyStats)
+                : 0f;
+
+            if (enemyHealth != null)
+                enemyHealth.ApplyDamage(finalDamage);
+
+            UpdateEnemyHealthUi();
+
+            if (enemyController != null)
+                enemyController.RequestStagger(enemyStaggerDuration);
         }
     }
 
@@ -282,7 +407,6 @@ public class BattleUiController : MonoBehaviour
         for (int i = 0; i < controllers.Length; i++)
         {
             CombatActorController controller = controllers[i];
-
             if (controller == null)
                 continue;
 
@@ -327,11 +451,8 @@ public class BattleUiController : MonoBehaviour
 
     void TryAutoAssignCombatComponents()
     {
-        if (playerController != null)
-        {
-            if (playerStats == null)
-                playerStats = playerController.Stats;
-        }
+        if (playerController != null && playerStats == null)
+            playerStats = playerController.Stats;
 
         if (enemyController != null)
         {
@@ -350,6 +471,7 @@ public class BattleUiController : MonoBehaviour
     {
         if (!Application.isPlaying)
         {
+            playerMaxHpNormalized = 1f;
             currentFailGauge = 1f;
             currentRecoverGauge = 0f;
             isPlayerQteActive = false;
@@ -363,10 +485,11 @@ public class BattleUiController : MonoBehaviour
 
     void UpdatePlayerHealthUi()
     {
-        if (playerHealthUi.fillImage == null)
-            return;
+        if (playerHealthUi.fillImage != null)
+            playerHealthUi.fillImage.fillAmount = PlayerHealthNormalized;
 
-        playerHealthUi.fillImage.fillAmount = PlayerHealthNormalized;
+        if (playerHealthUi.maxHpCapFill != null)
+            playerHealthUi.maxHpCapFill.fillAmount = playerMaxHpNormalized;
     }
 
     void UpdateEnemyHealthUi()
@@ -401,6 +524,9 @@ public class BattleUiController : MonoBehaviour
 
         if (playerQte.recoverGaugeFill != null)
             playerQte.recoverGaugeFill.fillAmount = currentRecoverGauge;
+
+        if (playerQte.maxHpCapFill != null)
+            playerQte.maxHpCapFill.fillAmount = playerMaxHpNormalized;
 
         UpdatePlayerHealthUi();
     }
