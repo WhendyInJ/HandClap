@@ -7,11 +7,10 @@ public enum EnemyActionChoice
     Dodge,
 }
 
-[RequireComponent(typeof(PlayerController))]
 public class EnemyController : MonoBehaviour
 {
     [Header("Enemy Setup")]
-    [SerializeField] private PlayerController targetController;
+    [SerializeField] private CombatActorController targetController;
     [SerializeField] private Vector2 enemyPushDirection = Vector2.left;
     [SerializeField] private bool enableDebugInput;
     [SerializeField] private KeyCode pushKey = KeyCode.Keypad1;
@@ -27,16 +26,29 @@ public class EnemyController : MonoBehaviour
     [SerializeField] private float dodgeWeight = 0.3f;
     [SerializeField] private bool enableAiDebugLogs = true;
 
-    private PlayerController motionController;
+    private CombatActorController actorController;
     private float nextDecisionDelay;
+
+    public CombatActorController ActorController
+    {
+        get
+        {
+            EnsureActorController(true);
+            return actorController;
+        }
+    }
+
+    public CombatActorController TargetController => targetController;
 
     void Reset()
     {
+        EnsureActorController(true);
         ApplySetup();
     }
 
     void Awake()
     {
+        EnsureActorController(true);
         ApplySetup();
     }
 
@@ -47,6 +59,7 @@ public class EnemyController : MonoBehaviour
 
     void OnValidate()
     {
+        EnsureActorController(false);
         ApplySetup();
         decisionIntervalMin = Mathf.Max(0.1f, decisionIntervalMin);
         decisionIntervalMax = Mathf.Max(decisionIntervalMin, decisionIntervalMax);
@@ -57,7 +70,9 @@ public class EnemyController : MonoBehaviour
 
     void Update()
     {
-        if (!enableAi || motionController == null || !motionController.CanAttemptDecision)
+        UpdateDebugInput();
+
+        if (!enableAi || actorController == null || !actorController.CanAttemptDecision)
             return;
 
         nextDecisionDelay -= Time.deltaTime;
@@ -70,37 +85,79 @@ public class EnemyController : MonoBehaviour
 
     public bool TryPush()
     {
-        return motionController != null && motionController.TryPush();
+        return actorController != null && actorController.TryPush();
     }
 
     public bool TryDodge()
     {
-        return motionController != null && motionController.TryDodge();
+        return actorController != null && actorController.TryDodge();
     }
 
     public bool TryBalanceDebug()
     {
-        return motionController != null && motionController.TryBalanceDebug();
+        return actorController != null && actorController.TryBalanceDebug();
     }
 
     void ApplySetup()
     {
-        if (!TryGetComponent(out motionController))
+        EnsureActorController(false);
+
+        if (actorController == null)
             return;
 
-        motionController.SetPushDirection(enemyPushDirection);
-        motionController.SetDebugInputEnabled(enableDebugInput);
-        motionController.SetDebugKeys(pushKey, dodgeKey, balanceKey);
-        motionController.SetCombatPresentation(CombatActorSide.Enemy, "\uC801", "#FF5C5C");
-        motionController.SetOpponent(targetController);
+        if (targetController == null)
+            targetController = FindPlayerTarget();
+
+        actorController.SetPushDirection(enemyPushDirection);
+        actorController.SetCombatPresentation(CombatActorSide.Enemy, "\uC801", "#FF5C5C");
+        actorController.SetOpponent(targetController);
 
         if (targetController != null)
         {
             targetController.SetCombatPresentation(CombatActorSide.Player, "\uD50C\uB808\uC774\uC5B4", "#4AA3FF");
 
             if (targetController.OpponentController == null)
-                targetController.SetOpponent(motionController);
+                targetController.SetOpponent(actorController);
         }
+    }
+
+    void EnsureActorController(bool addIfMissing)
+    {
+        if (actorController != null || TryGetComponent(out actorController) || !addIfMissing)
+            return;
+
+        actorController = gameObject.AddComponent<CombatActorController>();
+    }
+
+    CombatActorController FindPlayerTarget()
+    {
+        CombatActorController[] actors = FindObjectsByType<CombatActorController>(FindObjectsSortMode.None);
+        for (int i = 0; i < actors.Length; i++)
+        {
+            CombatActorController actor = actors[i];
+            if (actor != null
+                && actor != actorController
+                && actor.ActorSide == CombatActorSide.Player
+                && !actor.TryGetComponent<EnemyController>(out _))
+                return actor;
+        }
+
+        return null;
+    }
+
+    void UpdateDebugInput()
+    {
+        if (!enableDebugInput || actorController == null)
+            return;
+
+        if (Input.GetKeyDown(pushKey))
+            actorController.TryPush();
+
+        if (Input.GetKeyDown(dodgeKey))
+            actorController.TryDodge();
+
+        if (Input.GetKeyDown(balanceKey))
+            actorController.TryBalanceDebug();
     }
 
     void ExecuteAiDecision()
@@ -109,7 +166,7 @@ public class EnemyController : MonoBehaviour
 
         if (enableAiDebugLogs)
         {
-            string lane = motionController.BuildCombatLane(
+            string lane = actorController.BuildCombatLane(
                 targetController,
                 ToCombatState(action),
                 targetController != null ? targetController.ResolutionCombatState : CombatState.Neutral);
@@ -122,15 +179,15 @@ public class EnemyController : MonoBehaviour
         switch (action)
         {
             case EnemyActionChoice.Attack:
-                motionController.TryPush();
+                actorController.TryPush();
                 break;
 
             case EnemyActionChoice.Dodge:
-                motionController.TryDodge();
+                actorController.TryDodge();
                 break;
 
             default:
-                motionController.TryStayNeutral();
+                actorController.TryStayNeutral();
                 break;
         }
     }

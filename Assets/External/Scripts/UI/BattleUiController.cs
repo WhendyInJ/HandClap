@@ -11,11 +11,9 @@ public enum QteEndReason
 public class BattleUiController : MonoBehaviour
 {
     [Serializable]
-    private class EnemyHealthUiBinding
+    private class HealthUiBinding
     {
         public Image fillImage;
-        [Min(1f)] public float maxHealth = 5f;
-        [Min(0f)] public float damagePerHit = 1f;
     }
 
     [Serializable]
@@ -34,21 +32,24 @@ public class BattleUiController : MonoBehaviour
         [Range(0.25f, 1.5f)] public float overlapTolerance = 1f;
         [Min(0f)] public float failDrainPerSecond = 0.35f;
         [Min(0f)] public float recoverPerSecond = 0.65f;
-        [Min(0f)] public float incomingDamagePerHit = 1f;
         public bool hideWhenInactive = true;
     }
 
     [Header("Combat Targets")]
-    [SerializeField] private PlayerController playerController;
-    [SerializeField] private PlayerController enemyController;
+    [SerializeField] private CombatActorController playerController;
+    [SerializeField] private CombatActorController enemyController;
+    [SerializeField] private CombatActorStats playerStats;
+    [SerializeField] private CombatActorStats enemyStats;
+    [SerializeField] private CombatHealth playerHealth;
+    [SerializeField] private CombatHealth enemyHealth;
 
-    [Header("Enemy Health")]
-    [SerializeField] private EnemyHealthUiBinding enemyHealth = new EnemyHealthUiBinding();
+    [Header("Health UI")]
+    [SerializeField] private HealthUiBinding playerHealthUi = new HealthUiBinding();
+    [SerializeField] private HealthUiBinding enemyHealthUi = new HealthUiBinding();
 
     [Header("Player QTE")]
     [SerializeField] private PlayerQteUiBinding playerQte = new PlayerQteUiBinding();
 
-    private float currentEnemyHealth;
     private float currentFailGauge;
     private float currentRecoverGauge;
     private float lastPlayerDamageTaken;
@@ -58,7 +59,8 @@ public class BattleUiController : MonoBehaviour
     public event Action<QteEndReason> PlayerQteEnded;
 
     public bool IsPlayerQteActive => isPlayerQteActive;
-    public float EnemyHealthNormalized => Normalize(currentEnemyHealth, enemyHealth.maxHealth);
+    public float PlayerHealthNormalized => playerHealth != null ? playerHealth.Normalized : 0f;
+    public float EnemyHealthNormalized => enemyHealth != null ? enemyHealth.Normalized : 0f;
     public float FailGaugeNormalized => currentFailGauge;
     public float RecoverGaugeNormalized => currentRecoverGauge;
     public float LastPlayerDamageTaken => lastPlayerDamageTaken;
@@ -66,12 +68,14 @@ public class BattleUiController : MonoBehaviour
     void Reset()
     {
         TryAutoAssignControllers();
+        TryAutoAssignCombatComponents();
         ApplyImmediateUiState();
     }
 
     void Awake()
     {
-        currentEnemyHealth = Mathf.Max(0f, enemyHealth.maxHealth);
+        TryAutoAssignControllers();
+        TryAutoAssignCombatComponents();
         currentFailGauge = 1f;
         currentRecoverGauge = 0f;
         ApplyImmediateUiState();
@@ -79,24 +83,25 @@ public class BattleUiController : MonoBehaviour
 
     void OnEnable()
     {
+        TryAutoAssignControllers();
+        TryAutoAssignCombatComponents();
         SubscribeCombatEvents();
-        ApplyQteVisibility();
+        SubscribeHealthEvents();
+        ApplyImmediateUiState();
     }
 
     void OnDisable()
     {
         UnsubscribeCombatEvents();
+        UnsubscribeHealthEvents();
     }
 
     void OnValidate()
     {
-        enemyHealth.maxHealth = Mathf.Max(1f, enemyHealth.maxHealth);
-        enemyHealth.damagePerHit = Mathf.Max(0f, enemyHealth.damagePerHit);
         playerQte.movingBarSpeed = Mathf.Max(0f, playerQte.movingBarSpeed);
         playerQte.inputBoxSpeed = Mathf.Max(0f, playerQte.inputBoxSpeed);
         playerQte.failDrainPerSecond = Mathf.Max(0f, playerQte.failDrainPerSecond);
         playerQte.recoverPerSecond = Mathf.Max(0f, playerQte.recoverPerSecond);
-        playerQte.incomingDamagePerHit = Mathf.Max(0f, playerQte.incomingDamagePerHit);
 
         if (!Application.isPlaying)
             ApplyImmediateUiState();
@@ -114,16 +119,18 @@ public class BattleUiController : MonoBehaviour
 
     public void ResetEnemyHealth()
     {
-        currentEnemyHealth = enemyHealth.maxHealth;
+        if (enemyHealth != null)
+            enemyHealth.ResetHealth();
+
         UpdateEnemyHealthUi();
     }
 
     public void ApplyEnemyDamage(float damage)
     {
-        if (damage <= 0f)
+        if (damage <= 0f || enemyHealth == null)
             return;
 
-        currentEnemyHealth = Mathf.Clamp(currentEnemyHealth - damage, 0f, enemyHealth.maxHealth);
+        enemyHealth.ApplyDamage(damage);
         UpdateEnemyHealthUi();
     }
 
@@ -165,20 +172,26 @@ public class BattleUiController : MonoBehaviour
 
         if (eventData.Actor == playerController && eventData.Opponent == enemyController)
         {
-            float finalDamage = SlotStatRules.CalculateEnemyReceivedDamage(
-                enemyHealth.damagePerHit,
-                playerController.Build,
-                enemyController.Build);
-            ApplyEnemyDamage(finalDamage);
+            float finalDamage = playerStats != null
+                ? playerStats.CalculateDamageToEnemy(enemyStats)
+                : 0f;
+
+            if (enemyHealth != null)
+                enemyHealth.ApplyDamage(finalDamage);
+
+            UpdateEnemyHealthUi();
             return;
         }
 
         if (eventData.Actor == enemyController && eventData.Opponent == playerController)
         {
-            float finalDamage = SlotStatRules.CalculatePlayerReceivedDamage(
-                playerQte.incomingDamagePerHit,
-                enemyController.Build,
-                playerController.Build);
+            float finalDamage = enemyStats != null
+                ? enemyStats.CalculateDamageToPlayer(playerStats)
+                : 0f;
+
+            if (playerHealth != null)
+                playerHealth.ApplyDamage(finalDamage);
+
             StartPlayerQte(finalDamage);
         }
     }
@@ -201,15 +214,51 @@ public class BattleUiController : MonoBehaviour
             enemyController.CombatEventRaised -= HandleCombatEvent;
     }
 
+    void SubscribeHealthEvents()
+    {
+        if (playerHealth != null)
+            playerHealth.HealthChanged += HandleHealthChanged;
+
+        if (enemyHealth != null && enemyHealth != playerHealth)
+            enemyHealth.HealthChanged += HandleHealthChanged;
+    }
+
+    void UnsubscribeHealthEvents()
+    {
+        if (playerHealth != null)
+            playerHealth.HealthChanged -= HandleHealthChanged;
+
+        if (enemyHealth != null && enemyHealth != playerHealth)
+            enemyHealth.HealthChanged -= HandleHealthChanged;
+    }
+
+    void HandleHealthChanged(CombatHealth changedHealth)
+    {
+        if (changedHealth == playerHealth)
+            UpdatePlayerHealthUi();
+
+        if (changedHealth == enemyHealth)
+            UpdateEnemyHealthUi();
+    }
+
     void TryAutoAssignControllers()
     {
         if (playerController != null && enemyController != null)
             return;
 
-        PlayerController[] controllers = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
+        if (playerController == null)
+            playerController = FindPlayerController();
+
+        if (enemyController == null)
+            enemyController = FindEnemyController();
+
+        if (playerController != null && enemyController != null)
+            return;
+
+        CombatActorController[] controllers = FindObjectsByType<CombatActorController>(FindObjectsSortMode.None);
         for (int i = 0; i < controllers.Length; i++)
         {
-            PlayerController controller = controllers[i];
+            CombatActorController controller = controllers[i];
 
             if (controller == null)
                 continue;
@@ -227,27 +276,88 @@ public class BattleUiController : MonoBehaviour
             playerController = enemyController.OpponentController;
     }
 
+    CombatActorController FindPlayerController()
+    {
+        PlayerController[] players = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
+        for (int i = 0; i < players.Length; i++)
+        {
+            PlayerController player = players[i];
+            if (player != null && !player.TryGetComponent<EnemyController>(out _))
+                return player;
+        }
+
+        return null;
+    }
+
+    CombatActorController FindEnemyController()
+    {
+        EnemyController[] enemies = FindObjectsByType<EnemyController>(FindObjectsSortMode.None);
+        for (int i = 0; i < enemies.Length; i++)
+        {
+            EnemyController enemy = enemies[i];
+            if (enemy != null && enemy.ActorController != null)
+                return enemy.ActorController;
+        }
+
+        return null;
+    }
+
+    void TryAutoAssignCombatComponents()
+    {
+        if (playerController != null)
+        {
+            if (playerStats == null)
+                playerStats = playerController.Stats;
+
+            if (playerHealth == null)
+                playerHealth = playerController.Health;
+        }
+
+        if (enemyController != null)
+        {
+            if (enemyStats == null)
+                enemyStats = enemyController.Stats;
+
+            if (enemyHealth == null)
+                enemyHealth = enemyController.Health;
+        }
+
+        if (playerHealth != null)
+            playerHealth.EnsureInitialized();
+
+        if (enemyHealth != null)
+            enemyHealth.EnsureInitialized();
+    }
+
     void ApplyImmediateUiState()
     {
         if (!Application.isPlaying)
         {
-            currentEnemyHealth = enemyHealth.maxHealth;
             currentFailGauge = 1f;
             currentRecoverGauge = 0f;
             isPlayerQteActive = false;
         }
 
+        UpdatePlayerHealthUi();
         UpdateEnemyHealthUi();
         UpdateQteGaugeUi();
         ApplyQteVisibility();
     }
 
-    void UpdateEnemyHealthUi()
+    void UpdatePlayerHealthUi()
     {
-        if (enemyHealth.fillImage == null)
+        if (playerHealthUi.fillImage == null)
             return;
 
-        enemyHealth.fillImage.fillAmount = EnemyHealthNormalized;
+        playerHealthUi.fillImage.fillAmount = PlayerHealthNormalized;
+    }
+
+    void UpdateEnemyHealthUi()
+    {
+        if (enemyHealthUi.fillImage == null)
+            return;
+
+        enemyHealthUi.fillImage.fillAmount = EnemyHealthNormalized;
     }
 
     void UpdateQteGaugeState()
@@ -368,8 +478,8 @@ public class BattleUiController : MonoBehaviour
 
     float GetPlayerStaggerDifficulty()
     {
-        return playerController != null
-            ? Mathf.Max(0.01f, playerController.StaggerDifficultyMultiplier)
+        return playerStats != null
+            ? Mathf.Max(0.01f, playerStats.StaggerDifficultyMultiplier)
             : 1f;
     }
 
@@ -386,11 +496,6 @@ public class BattleUiController : MonoBehaviour
     static float GetRectWidth(RectTransform rectTransform)
     {
         return rectTransform == null ? 0f : rectTransform.rect.width;
-    }
-
-    static float Normalize(float current, float max)
-    {
-        return max <= 0f ? 0f : Mathf.Clamp01(current / max);
     }
 
     static void SetAnchoredX(RectTransform rectTransform, float value)

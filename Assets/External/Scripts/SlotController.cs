@@ -7,7 +7,7 @@ public class SlotController : MonoBehaviour
     public Reel reelBody;
     public Reel reelHand;
 
-    [SerializeField] private PlayerController targetPlayer;
+    [SerializeField] private CombatActorStats targetStats;
 
     [Tooltip("마지막 릴(Hand) 정지가 끝난 뒤 Space로 다시 돌릴 수 있을 때까지 대기(초).")]
     public float inputCooldownAfterStop = 1f;
@@ -33,12 +33,12 @@ public class SlotController : MonoBehaviour
 
     void Reset()
     {
-        TryAutoAssignTargetPlayer();
+        TryAutoAssignTargetStats();
     }
 
     void Awake()
     {
-        TryAutoAssignTargetPlayer();
+        TryAutoAssignTargetStats();
     }
 
     void Update()
@@ -105,27 +105,27 @@ public class SlotController : MonoBehaviour
 
     void ApplyPendingBuild()
     {
-        if (targetPlayer == null)
-            TryAutoAssignTargetPlayer();
+        if (targetStats == null)
+            TryAutoAssignTargetStats();
 
-        if (targetPlayer != null)
-            targetPlayer.ApplyBuild(pendingBuild);
+        if (targetStats != null)
+            targetStats.ApplyBuild(pendingBuild);
 
         BuildResolved?.Invoke(pendingBuild);
     }
 
-    void TryAutoAssignTargetPlayer()
+    void TryAutoAssignTargetStats()
     {
-        if (targetPlayer != null)
+        if (targetStats != null)
             return;
 
-        PlayerController[] controllers = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
+        CombatActorController[] controllers = FindObjectsByType<CombatActorController>(FindObjectsSortMode.None);
         for (int i = 0; i < controllers.Length; i++)
         {
-            PlayerController controller = controllers[i];
+            CombatActorController controller = controllers[i];
             if (controller != null && controller.ActorSide == CombatActorSide.Player)
             {
-                targetPlayer = controller;
+                targetStats = controller.Stats;
                 return;
             }
         }
