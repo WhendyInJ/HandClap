@@ -832,6 +832,9 @@ GameObject:
   m_Component:
   - component: {fileID: 378955179}
   - component: {fileID: 378955180}
+  - component: {fileID: 378955182}
+  - component: {fileID: 378955181}
+  - component: {fileID: 378955183}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -867,6 +870,58 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7ffba0d7a38d4bb4da0a8f7fd6973ff2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
+  actorName: "\uD50C\uB808\uC774\uC5B4"
+  actorSide: 0
+  actorColorHex: '#4AA3FF'
+  opponentController: {fileID: 0}
+  enableCombatDebugLogs: 1
+  stats: {fileID: 378955182}
+  health: {fileID: 378955181}
+  motion: {fileID: 378955183}
+--- !u!114 &378955181
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 378955177}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 903f19f2f1e882a47b4e5ee452f256f0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CombatHealth
+  maxHealth: 5
+  resetOnAwake: 1
+  currentHealth: 0
+--- !u!114 &378955182
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 378955177}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f54e7ccb598b13143a81907cff110c4f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CombatActorStats
+  build:
+    Element: 0
+    BodyType: 1
+    HandSize: 1
+  baseAttackDamage: 1
+--- !u!114 &378955183
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 378955177}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7d2e6b3e78cbc6a4b99719b7bba695cb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CombatMotionController
   bodyPivot: {fileID: 1793648469}
   handPivot: {fileID: 223912384}
   handVisual: {fileID: 417912333}
@@ -888,31 +943,22 @@ MonoBehaviour:
   holdDuration: 0.07
   retractDuration: 0.3
   cooldown: 0.35
-  dodgeDistance: 1.5
-  dodgeHeight: 0.25
-  dodgeLeanAngle: 20
+  dodgeDistance: 1.2
+  dodgeHeight: 0.35
+  dodgeLeanAngle: 18
   dodgeOutDuration: 0.14
-  dodgeHoldDuration: 0.15
+  dodgeHoldDuration: 0.08
   dodgeRecoverDuration: 0.22
-  balanceLeanBackAngle: 35
-  balanceWobbleAngle: 15
+  balanceLeanBackAngle: 14
+  balanceWobbleAngle: 9
   balanceEnterDuration: 0.12
   balanceWobbleTime: 0.9
   balanceRecoverTime: 0.18
   balanceWobbleCycles: 2.5
-  balanceHandSwingAngle: 28
-  balanceHandOffsetX: 0.5
-  balanceHandOffsetY: 0.1
-  balanceHandFlailCycles: 4
-  enableDebugInput: 1
-  pushKey: 32
-  dodgeKey: 120
-  balanceDebugKey: 99
-  actorName: "\uD50C\uB808\uC774\uC5B4"
-  actorSide: 0
-  actorColorHex: '#4AA3FF'
-  opponentController: {fileID: 1452778059}
-  enableCombatDebugLogs: 1
+  balanceHandSwingAngle: 34
+  balanceHandOffsetX: 0.32
+  balanceHandOffsetY: 0.08
+  balanceHandFlailCycles: 3.2
 --- !u!1 &417912332
 GameObject:
   m_ObjectHideFlags: 0
@@ -2611,8 +2657,10 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1452778057}
-  - component: {fileID: 1452778059}
   - component: {fileID: 1452778058}
+  - component: {fileID: 1452778061}
+  - component: {fileID: 1452778060}
+  - component: {fileID: 1452778062}
   m_Layer: 0
   m_Name: Enemy
   m_TagString: Untagged
@@ -2661,7 +2709,7 @@ MonoBehaviour:
   idleWeight: 0.3
   dodgeWeight: 0.3
   enableAiDebugLogs: 1
---- !u!114 &1452778059
+--- !u!114 &1452778060
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -2670,9 +2718,41 @@ MonoBehaviour:
   m_GameObject: {fileID: 1452778055}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7ffba0d7a38d4bb4da0a8f7fd6973ff2, type: 3}
+  m_Script: {fileID: 11500000, guid: 903f19f2f1e882a47b4e5ee452f256f0, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PlayerController
+  m_EditorClassIdentifier: Assembly-CSharp::CombatHealth
+  maxHealth: 10
+  resetOnAwake: 1
+  currentHealth: 10
+--- !u!114 &1452778061
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1452778055}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f54e7ccb598b13143a81907cff110c4f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CombatActorStats
+  build:
+    Element: 0
+    BodyType: 1
+    HandSize: 1
+  baseAttackDamage: 1
+--- !u!114 &1452778062
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1452778055}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7d2e6b3e78cbc6a4b99719b7bba695cb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CombatMotionController
   bodyPivot: {fileID: 2128580670}
   handPivot: {fileID: 91668884}
   handVisual: {fileID: 1161209499}
@@ -2694,31 +2774,22 @@ MonoBehaviour:
   holdDuration: 0.07
   retractDuration: 0.3
   cooldown: 0.35
-  dodgeDistance: 1.5
-  dodgeHeight: 0.25
-  dodgeLeanAngle: 20
+  dodgeDistance: 1.2
+  dodgeHeight: 0.35
+  dodgeLeanAngle: 18
   dodgeOutDuration: 0.14
-  dodgeHoldDuration: 0.15
+  dodgeHoldDuration: 0.08
   dodgeRecoverDuration: 0.22
-  balanceLeanBackAngle: 35
-  balanceWobbleAngle: 15
+  balanceLeanBackAngle: 14
+  balanceWobbleAngle: 9
   balanceEnterDuration: 0.12
   balanceWobbleTime: 0.9
   balanceRecoverTime: 0.18
   balanceWobbleCycles: 2.5
-  balanceHandSwingAngle: 28
-  balanceHandOffsetX: 0.5
-  balanceHandOffsetY: 0.1
-  balanceHandFlailCycles: 4
-  enableDebugInput: 1
-  pushKey: 257
-  dodgeKey: 258
-  balanceDebugKey: 259
-  actorName: "\uC801"
-  actorSide: 1
-  actorColorHex: '#FF5C5C'
-  opponentController: {fileID: 378955180}
-  enableCombatDebugLogs: 1
+  balanceHandSwingAngle: 34
+  balanceHandOffsetX: 0.32
+  balanceHandOffsetY: 0.08
+  balanceHandFlailCycles: 3.2
 --- !u!1 &1522576858
 GameObject:
   m_ObjectHideFlags: 0
@@ -3582,11 +3653,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BattleUiController
   playerController: {fileID: 378955180}
-  enemyController: {fileID: 1452778059}
-  enemyHealth:
-    fillImage: {fileID: 1600789568}
-    maxHealth: 10
-    damagePerHit: 1
+  enemyController: {fileID: 0}
+  playerStats: {fileID: 0}
+  enemyStats: {fileID: 0}
+  playerHealth: {fileID: 0}
+  enemyHealth: {fileID: 0}
+  playerHealthUi:
+    fillImage: {fileID: 0}
+  enemyHealthUi:
+    fillImage: {fileID: 0}
   playerQte:
     root: {fileID: 1981451467}
     failGaugeFill: {fileID: 262759859}

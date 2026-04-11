@@ -11,8 +11,8 @@ public readonly struct CombatEventData
 {
     public CombatEventData(
         CombatEventKind kind,
-        PlayerController actor,
-        PlayerController opponent,
+        CombatActorController actor,
+        CombatActorController opponent,
         CombatState actorState,
         CombatState opponentState,
         string summary)
@@ -26,8 +26,8 @@ public readonly struct CombatEventData
     }
 
     public CombatEventKind Kind { get; }
-    public PlayerController Actor { get; }
-    public PlayerController Opponent { get; }
+    public CombatActorController Actor { get; }
+    public CombatActorController Opponent { get; }
     public CombatState ActorState { get; }
     public CombatState OpponentState { get; }
     public string Summary { get; }
