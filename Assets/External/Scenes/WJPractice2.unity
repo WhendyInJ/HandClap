@@ -6326,15 +6326,15 @@ MonoBehaviour:
   battleUiController: {fileID: 2015795231}
   playerController: {fileID: 378955180}
   enemyController: {fileID: 1452778059}
+  roundChoiceCanvas: {fileID: 0}
   canvas_Slot: {fileID: 0}
+  nextRoundCountdownText: {fileID: 0}
+  countdownTextFormat: "\uB2E4\uC74C \uB77C\uC6B4\uB4DC\uAE4C\uC9C0 {0}\uCD08"
   roundDurationSeconds: 2
   totalRounds: 3
-  rerollPreviewDuration: 0.9
-  playerMaxHealth: 5
-  playerStartHealth: 5
-  playerDamagePerEnemyHit: 1
-  playerDamageOnQteFail: 1
-  healAmountBetweenRounds: 2
+  rerollAutoCloseDelay: 0.9
+  nextRoundDelayAfterSlotClose: 5
+  failGaugeRecoveryBetweenRounds: 1
 --- !u!4 &1298235418
 Transform:
   m_ObjectHideFlags: 0

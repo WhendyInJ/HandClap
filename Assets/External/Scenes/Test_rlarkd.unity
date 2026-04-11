@@ -873,7 +873,7 @@ MonoBehaviour:
   actorName: "\uD50C\uB808\uC774\uC5B4"
   actorSide: 0
   actorColorHex: '#4AA3FF'
-  opponentController: {fileID: 0}
+  opponentController: {fileID: 1452778063}
   enableCombatDebugLogs: 1
   stats: {fileID: 378955182}
   health: {fileID: 378955181}
@@ -2661,6 +2661,7 @@ GameObject:
   - component: {fileID: 1452778061}
   - component: {fileID: 1452778060}
   - component: {fileID: 1452778062}
+  - component: {fileID: 1452778063}
   m_Layer: 0
   m_Name: Enemy
   m_TagString: Untagged
@@ -2790,6 +2791,26 @@ MonoBehaviour:
   balanceHandOffsetX: 0.32
   balanceHandOffsetY: 0.08
   balanceHandFlailCycles: 3.2
+--- !u!114 &1452778063
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1452778055}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a06b2cad95dbe404aa8fa5292793c42b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CombatActorController
+  actorName: "\uC801"
+  actorSide: 1
+  actorColorHex: '#FF5C5C'
+  opponentController: {fileID: 378955180}
+  enableCombatDebugLogs: 1
+  stats: {fileID: 1452778061}
+  health: {fileID: 1452778060}
+  motion: {fileID: 1452778062}
 --- !u!1 &1522576858
 GameObject:
   m_ObjectHideFlags: 0
@@ -3089,7 +3110,7 @@ MonoBehaviour:
   m_PreserveAspect: 0
   m_FillCenter: 1
   m_FillMethod: 0
-  m_FillAmount: 1
+  m_FillAmount: 0
   m_FillClockwise: 1
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
@@ -3365,6 +3386,63 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1797599719}
   m_CullTransparentMesh: 1
+--- !u!1 &1802868412
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1802868414}
+  - component: {fileID: 1802868413}
+  m_Layer: 0
+  m_Name: GameObject (1)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1802868413
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1802868412}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cd37ece3d352e4b41b7717f87c7a9b12, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RoundGameManager
+  slotController: {fileID: 0}
+  battleUiController: {fileID: 2015795231}
+  playerController: {fileID: 378955180}
+  enemyController: {fileID: 1452778063}
+  roundChoiceCanvas: {fileID: 0}
+  canvas_Slot: {fileID: 0}
+  nextRoundCountdownText: {fileID: 0}
+  countdownTextFormat: "\uB2E4\uC74C \uB77C\uC6B4\uB4DC\uAE4C\uC9C0 {0}\uCD08"
+  roundDurationSeconds: 30
+  totalRounds: 3
+  rerollAutoCloseDelay: 3
+  nextRoundDelayAfterSlotClose: 5
+  failGaugeRecoveryBetweenRounds: 1
+--- !u!4 &1802868414
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1802868412}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 1491.3345, y: 45.82426, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1918722948
 GameObject:
   m_ObjectHideFlags: 0
@@ -3656,12 +3734,11 @@ MonoBehaviour:
   enemyController: {fileID: 0}
   playerStats: {fileID: 0}
   enemyStats: {fileID: 0}
-  playerHealth: {fileID: 0}
   enemyHealth: {fileID: 0}
   playerHealthUi:
     fillImage: {fileID: 0}
   enemyHealthUi:
-    fillImage: {fileID: 0}
+    fillImage: {fileID: 1600789568}
   playerQte:
     root: {fileID: 1981451467}
     failGaugeFill: {fileID: 262759859}
@@ -3676,6 +3753,7 @@ MonoBehaviour:
     overlapTolerance: 1
     failDrainPerSecond: 0.35
     recoverPerSecond: 0.65
+    failGaugeLossPerDamage: 0.2
     hideWhenInactive: 1
 --- !u!1 &2019027552
 GameObject:
@@ -3800,3 +3878,4 @@ SceneRoots:
   - {fileID: 1636778178}
   - {fileID: 563841450}
   - {fileID: 2015795230}
+  - {fileID: 1802868414}
