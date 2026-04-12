@@ -1,0 +1,113 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &2343037726676943404
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3887196991078448325}
+  - component: {fileID: 8076081756911405021}
+  - component: {fileID: 912042058021628079}
+  m_Layer: 0
+  m_Name: MiniGameManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3887196991078448325
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2343037726676943404}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 1108.995, y: 914.9448, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &8076081756911405021
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2343037726676943404}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aef3ff431e163674eb0071b7a332ec72, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BattleUiController
+  playerController: {fileID: 0}
+  enemyController: {fileID: 0}
+  playerStats: {fileID: 0}
+  enemyStats: {fileID: 0}
+  enemyHealth: {fileID: 0}
+  playerHealthUi:
+    fillImage: {fileID: 0}
+    maxHpCapFill: {fileID: 0}
+  enemyHealthUi:
+    fillImage: {fileID: 0}
+    maxHpCapFill: {fileID: 0}
+  playerQte:
+    root: {fileID: 0}
+    failGaugeFill: {fileID: 0}
+    recoverGaugeFill: {fileID: 0}
+    maxHpCapFill: {fileID: 0}
+    track: {fileID: 0}
+    movingBar: {fileID: 0}
+    inputBox: {fileID: 0}
+    moveLeftKey: 276
+    moveRightKey: 275
+    movingBarSpeed: 520
+    inputBoxSpeed: 520
+    overlapTolerance: 1
+    failDrainPerSecond: 0.35
+    recoverPerSecond: 0.65
+    failGaugeLossPerDamage: 0.2
+    hideWhenInactive: 0
+  enemyStaggerDuration: 2
+  staggerBonusDamageMultiplier: 1.5
+  dodgeFailGaugePenalty: 0.1
+--- !u!114 &912042058021628079
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2343037726676943404}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3c8e1e9d55204d819bb084dbbea406ae, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ClashTugMinigameController
+  battleUiController: {fileID: 8076081756911405021}
+  playerController: {fileID: 0}
+  enemyController: {fileID: 0}
+  playerStats: {fileID: 0}
+  enemyStats: {fileID: 0}
+  ui:
+    root: {fileID: 0}
+    track: {fileID: 0}
+    marker: {fileID: 0}
+    playerFill: {fileID: 0}
+    enemyFill: {fileID: 0}
+    trackName: Track
+    markerName: Marker
+    playerFillName: PlayerFill
+    enemyFillName: EnemyFill
+    hideWhenInactive: 1
+  mashKey: 32
+  durationSeconds: 2.5
+  playerPushPerPress: 0.03
+  enemyPushPerSecond: 0.08
+  maxPushFromStart: 0.3
+  winThreshold: 0.5
+  resumeDelayAfterMinigame: 0.5

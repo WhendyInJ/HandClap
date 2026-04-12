@@ -1,5 +1,7 @@
 using UnityEngine;
+using System;
 using System.Collections;
+using Random = UnityEngine.Random;
 
 public class SlotController : MonoBehaviour
 {
@@ -23,12 +25,24 @@ public class SlotController : MonoBehaviour
     Phase phase = Phase.Idle;
 
     PlayerBuild pendingBuild;
+    PlayerBuild currentBuild;
     int pendingSlotElement;
     int pendingSlotBody;
     int pendingSlotHand;
+    bool hasResolvedBuild;
+    bool keyboardInputEnabled = true;
+
+    public event Action<PlayerBuild> BuildResolved;
+
+    public bool HasResolvedBuild => hasResolvedBuild;
+    public bool IsBusy => phase != Phase.Idle;
+    public PlayerBuild CurrentBuild => currentBuild;
 
     void Update()
     {
+        if (!keyboardInputEnabled)
+            return;
+
         if (!Input.GetKeyDown(KeyCode.Space))
             return;
 
@@ -44,6 +58,11 @@ public class SlotController : MonoBehaviour
             default:
                 break;
         }
+    }
+
+    public void SetKeyboardInputEnabled(bool isEnabled)
+    {
+        keyboardInputEnabled = isEnabled;
     }
 
     void BeginSpinPhase()
@@ -68,6 +87,23 @@ public class SlotController : MonoBehaviour
         Debug.Log("🎰 슬롯 시작 — Space를 다시 눌러 릴을 멈춥니다.");
     }
 
+    public bool TryBeginManualReroll()
+    {
+        if (phase != Phase.Idle)
+            return false;
+
+        BeginSpinPhase();
+        return true;
+    }
+
+    public void AutoReroll(float previewDuration = 0.9f)
+    {
+        if (phase != Phase.Idle)
+            return;
+
+        StartCoroutine(AutoRerollRoutine(previewDuration));
+    }
+
     IEnumerator ResolveSpinCoroutine()
     {
         yield return StartCoroutine(reelElement.CoStop(pendingSlotElement));
@@ -82,8 +118,24 @@ public class SlotController : MonoBehaviour
             $"결과 → Element: {pendingBuild.Element} (릴인덱스 {pendingSlotElement}), " +
             $"Body: {pendingBuild.BodyType} ({pendingSlotBody}), Hand: {pendingBuild.HandSize} ({pendingSlotHand})");
 
+        currentBuild = pendingBuild;
+        hasResolvedBuild = true;
+        BuildResolved?.Invoke(currentBuild);
+
         yield return new WaitForSeconds(inputCooldownAfterStop);
 
         phase = Phase.Idle;
+    }
+
+    IEnumerator AutoRerollRoutine(float previewDuration)
+    {
+        BeginSpinPhase();
+        yield return new WaitForSeconds(Mathf.Max(0f, previewDuration));
+
+        if (phase != Phase.AwaitingCommit)
+            yield break;
+
+        phase = Phase.Resolving;
+        yield return StartCoroutine(ResolveSpinCoroutine());
     }
 }
