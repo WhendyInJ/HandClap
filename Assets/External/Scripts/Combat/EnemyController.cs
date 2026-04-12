@@ -47,6 +47,11 @@ public class EnemyController : MonoBehaviour
     [SerializeField] private bool enableAi = true;
     [SerializeField] private bool enableAiDebugLogs = true;
 
+    [Header("AI Pause")]
+    [SerializeField] private bool pauseAiDuringMinigames = true;
+    [SerializeField] private BattleUiController battleUiController;
+    [SerializeField] private ClashTugMinigameController clashTugMinigameController;
+
     [Header("Action Cooldown (Idle → Acting)")]
     [Tooltip("대기 상태에서 AI가 먼저 행동을 취하기까지의 쿨타임 범위(초)")]
     [SerializeField] private float actionCooldownMin = 1.2f;
@@ -66,6 +71,12 @@ public class EnemyController : MonoBehaviour
     [SerializeField, Min(0f)] private float actFakeAttackWeight = 0.4f;
     // 페인트 모션 타이밍은 CombatMotionController의 "Feint Attack" 헤더에서 조절
 
+    [Header("Attack Telegraph")]
+    [SerializeField] private Vector2 attackTelegraphDelayRange = new Vector2(0.5f, 1.0f);
+    [SerializeField, Range(0f, 1f)] private float attackTelegraphDamageMultiplier = 0.5f;
+    [SerializeField, HideInInspector] private SpriteFillController attackTelegraphFill;
+    [SerializeField] private SpriteFillController[] attackTelegraphFills;
+
     // ── Runtime State ──────────────────────────────────────────────────────────
 
     private CombatActorController actorController;
@@ -74,6 +85,7 @@ public class EnemyController : MonoBehaviour
     private float actionCooldownTimer;
     private bool playerWasAttacking;
     private bool wasRoundCombatActive;
+    private bool isAttackTelegraphActive;
 
     // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -88,6 +100,8 @@ public class EnemyController : MonoBehaviour
 
     public CombatActorController TargetController => targetController;
     public EnemyAIState CurrentAIState => currentAiState;
+    public bool IsAttackTelegraphActive => isAttackTelegraphActive;
+    public float IncomingDamageMultiplier => isAttackTelegraphActive ? attackTelegraphDamageMultiplier : 1f;
 
     public bool TryPush()         => actorController != null && actorController.TryPush();
     public bool TryDodge()        => actorController != null && actorController.TryDodge();
@@ -98,17 +112,21 @@ public class EnemyController : MonoBehaviour
     void Reset()
     {
         EnsureActorController(true);
+        TryAutoAssignAiPauseSources();
         ApplySetup();
     }
 
     void Awake()
     {
         EnsureActorController(true);
+        TryAutoAssignAiPauseSources();
         ApplySetup();
+        SetAttackTelegraphFill(0f);
     }
 
     void OnEnable()
     {
+        TryAutoAssignAiPauseSources();
         ResetActionCooldown();
         wasRoundCombatActive = actorController != null && actorController.RoundCombatActive;
     }
@@ -120,6 +138,9 @@ public class EnemyController : MonoBehaviour
             StopCoroutine(aiStateRoutine);
             aiStateRoutine = null;
         }
+
+        SetAttackTelegraphActive(false);
+        SetAttackTelegraphFill(0f);
     }
 
     void OnValidate()
@@ -129,6 +150,9 @@ public class EnemyController : MonoBehaviour
         actionCooldownMin = Mathf.Max(0.1f, actionCooldownMin);
         actionCooldownMax = Mathf.Max(actionCooldownMin, actionCooldownMax);
         recoveryDelay     = Mathf.Max(0f, recoveryDelay);
+        attackTelegraphDelayRange.x = Mathf.Max(0f, attackTelegraphDelayRange.x);
+        attackTelegraphDelayRange.y = Mathf.Max(attackTelegraphDelayRange.x, attackTelegraphDelayRange.y);
+        attackTelegraphDamageMultiplier = Mathf.Clamp01(attackTelegraphDamageMultiplier);
     }
 
     void Update()
@@ -143,6 +167,12 @@ public class EnemyController : MonoBehaviour
 
         if (!enableAi || actorController == null || !isRoundCombatActive)
             return;
+
+        if (IsAiPausedByMinigame())
+        {
+            playerWasAttacking = IsPlayerAttacking();
+            return;
+        }
 
         // 쿨타임은 비-Idle 상태에서도 계속 진행
         // → 반응이 끝나고 Idle로 돌아왔을 때 바로 행동 상태로 진입 가능
@@ -187,9 +217,10 @@ public class EnemyController : MonoBehaviour
     {
         EnemyReactionChoice reaction = RollReaction();
         LogAI("반응", ReactionLabel(reaction), ReactionToCombatState(reaction));
-        ExecuteReaction(reaction);
+        yield return ExecuteReaction(reaction);
 
         yield return WaitForMotionEnd();
+        yield return WaitWhileAiPaused();
 
         if (!IsAiActive())
         {
@@ -197,12 +228,12 @@ public class EnemyController : MonoBehaviour
             yield break;
         }
 
-        yield return new WaitForSeconds(recoveryDelay);
+        yield return WaitForSecondsWithAiPause(recoveryDelay);
         ReturnToIdle();
         aiStateRoutine = null;
     }
 
-    void ExecuteReaction(EnemyReactionChoice reaction)
+    IEnumerator ExecuteReaction(EnemyReactionChoice reaction)
     {
         switch (reaction)
         {
@@ -216,6 +247,8 @@ public class EnemyController : MonoBehaviour
                 actorController.TryStayNeutral();
                 break;
         }
+
+        yield break;
     }
 
     // ── State: Acting ──────────────────────────────────────────────────────────
@@ -229,11 +262,7 @@ public class EnemyController : MonoBehaviour
 
     IEnumerator RunActing()
     {
-        EnemyActingChoice action = RollAction();
-        LogAI("행동", ActionLabel(action), ActionToCombatState(action));
-
-        ExecuteActing(action);
-        yield return WaitForMotionEnd();
+        yield return WaitWhileAiPaused();
 
         if (!IsAiActive())
         {
@@ -241,7 +270,31 @@ public class EnemyController : MonoBehaviour
             yield break;
         }
 
-        yield return new WaitForSeconds(recoveryDelay);
+        LogAI("행동 예고", "Telegraph", CombatState.Attack);
+        yield return RunAttackTelegraph();
+        yield return WaitWhileAiPaused();
+
+        if (!IsAiActive())
+        {
+            AbortAiStateRoutine();
+            yield break;
+        }
+
+        EnemyActingChoice action = RollAction();
+        LogAI("행동", ActionLabel(action), ActionToCombatState(action));
+
+        ExecuteActing(action);
+
+        yield return WaitForMotionEnd();
+        yield return WaitWhileAiPaused();
+
+        if (!IsAiActive())
+        {
+            AbortAiStateRoutine();
+            yield break;
+        }
+
+        yield return WaitForSecondsWithAiPause(recoveryDelay);
         ReturnToIdle();
         aiStateRoutine = null;
     }
@@ -249,9 +302,62 @@ public class EnemyController : MonoBehaviour
     void ExecuteActing(EnemyActingChoice action)
     {
         if (action == EnemyActingChoice.FakeAttack)
+        {
             actorController.TryFeintAttack(); // 뻗기→회수 독립 페인트 모션
-        else
-            actorController.TryPush();
+            return;
+        }
+
+        actorController.TryPush();
+    }
+
+    IEnumerator RunAttackTelegraph()
+    {
+        float duration = Random.Range(attackTelegraphDelayRange.x, attackTelegraphDelayRange.y);
+        if (duration <= 0f)
+        {
+            SetAttackTelegraphFill(0f);
+            yield break;
+        }
+
+        SetAttackTelegraphActive(true);
+        SetAttackTelegraphFill(0f);
+
+        float elapsed = 0f;
+        while (elapsed < duration && IsAiActive())
+        {
+            if (IsAiPausedByMinigame())
+            {
+                yield return WaitWhileAiPaused();
+                continue;
+            }
+
+            elapsed += Time.deltaTime;
+            SetAttackTelegraphFill(Mathf.Clamp01(elapsed / duration));
+            yield return null;
+        }
+
+        SetAttackTelegraphActive(false);
+        SetAttackTelegraphFill(0f);
+    }
+
+    void SetAttackTelegraphActive(bool active)
+    {
+        isAttackTelegraphActive = active;
+    }
+
+    void SetAttackTelegraphFill(float fill)
+    {
+        if (attackTelegraphFill != null)
+            attackTelegraphFill.SetFill(fill);
+
+        if (attackTelegraphFills == null)
+            return;
+
+        for (int i = 0; i < attackTelegraphFills.Length; i++)
+        {
+            if (attackTelegraphFills[i] != null)
+                attackTelegraphFills[i].SetFill(fill);
+        }
     }
 
     // ── Shared Helpers ─────────────────────────────────────────────────────────
@@ -262,7 +368,27 @@ public class EnemyController : MonoBehaviour
         yield return new WaitUntil(() =>
             actorController == null ||
             !actorController.RoundCombatActive ||
-            actorController.CanAttemptDecision);
+            (!IsAiPausedByMinigame() && actorController.CanAttemptDecision));
+    }
+
+    IEnumerator WaitWhileAiPaused()
+    {
+        while (IsAiActive() && IsAiPausedByMinigame())
+            yield return null;
+    }
+
+    IEnumerator WaitForSecondsWithAiPause(float duration)
+    {
+        float elapsed = 0f;
+        duration = Mathf.Max(0f, duration);
+
+        while (elapsed < duration && IsAiActive())
+        {
+            if (!IsAiPausedByMinigame())
+                elapsed += Time.deltaTime;
+
+            yield return null;
+        }
     }
 
     void ReturnToIdle()
@@ -282,13 +408,19 @@ public class EnemyController : MonoBehaviour
     void StartAiStateRoutine(IEnumerator routine)
     {
         if (aiStateRoutine != null)
+        {
             StopCoroutine(aiStateRoutine);
+            SetAttackTelegraphActive(false);
+            SetAttackTelegraphFill(0f);
+        }
 
         aiStateRoutine = StartCoroutine(routine);
     }
 
     void AbortAiStateRoutine()
     {
+        SetAttackTelegraphActive(false);
+        SetAttackTelegraphFill(0f);
         ReturnToIdle();
         aiStateRoutine = null;
     }
@@ -314,11 +446,31 @@ public class EnemyController : MonoBehaviour
         targetController != null &&
         targetController.CurrentCombatState == CombatState.Attack;
 
+    bool IsAiPausedByMinigame()
+    {
+        if (!pauseAiDuringMinigames)
+            return false;
+
+        TryAutoAssignAiPauseSources();
+
+        return (battleUiController != null && battleUiController.IsPlayerQteActive)
+            || (clashTugMinigameController != null && clashTugMinigameController.IsActive);
+    }
+
     bool IsAiActive() =>
         enableAi && actorController != null && actorController.RoundCombatActive;
 
     void ResetActionCooldown() =>
         actionCooldownTimer = Random.Range(actionCooldownMin, actionCooldownMax);
+
+    void TryAutoAssignAiPauseSources()
+    {
+        if (battleUiController == null)
+            battleUiController = FindFirstObjectByType<BattleUiController>();
+
+        if (clashTugMinigameController == null)
+            clashTugMinigameController = FindFirstObjectByType<ClashTugMinigameController>();
+    }
 
     // ── Probability Rolls ──────────────────────────────────────────────────────
 

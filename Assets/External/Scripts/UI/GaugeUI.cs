@@ -31,6 +31,7 @@ public class GaugeUI : MonoBehaviour
 
     float needleT;
     float needleSpeed;
+    float restNeedleT;
 
     void Reset()
     {
@@ -49,38 +50,22 @@ public class GaugeUI : MonoBehaviour
 
         float dt = Time.deltaTime;
 
+        float rest = Mathf.Clamp01(restNeedleT);
+        float pressedTarget = rest <= 0.5f ? 1f : 0f;
+
         if (Input.GetKey(holdKey))
         {
             if (resetSpeedOnPressDown && Input.GetKeyDown(holdKey))
                 needleSpeed = 0f;
 
-            if (needleT < 1f)
-            {
-                needleSpeed = Mathf.MoveTowards(needleSpeed, maxSpeed, accelerationWhilePressed * dt);
-                needleT = Mathf.Clamp01(needleT + needleSpeed * dt);
-            }
-            else
-            {
-                needleT = 1f;
-                needleSpeed = Mathf.Min(needleSpeed, maxSpeed);
-            }
+            MoveNeedleTowards(pressedTarget, accelerationWhilePressed, dt);
         }
         else
         {
             if (resetSpeedOnRelease && Input.GetKeyUp(holdKey))
                 needleSpeed = 0f;
 
-            if (needleT > 0f)
-            {
-                needleSpeed = Mathf.MoveTowards(needleSpeed, -maxSpeed, accelerationWhileReleased * dt);
-                needleT = Mathf.Clamp01(needleT + needleSpeed * dt);
-            }
-
-            if (needleT <= 0f)
-            {
-                needleT = 0f;
-                needleSpeed = 0f;
-            }
+            MoveNeedleTowards(rest, accelerationWhileReleased, dt);
         }
 
         ApplyNeedleRotation();
@@ -100,8 +85,39 @@ public class GaugeUI : MonoBehaviour
     public void SetNeedleImmediate(float normalized)
     {
         needleT = Mathf.Clamp01(normalized);
+        restNeedleT = needleT;
         needleSpeed = 0f;
         ApplyNeedleRotation();
+    }
+
+    void MoveNeedleTowards(float target, float acceleration, float dt)
+    {
+        target = Mathf.Clamp01(target);
+
+        if (Mathf.Approximately(needleT, target))
+        {
+            needleT = target;
+            needleSpeed = 0f;
+            return;
+        }
+
+        float direction = Mathf.Sign(target - needleT);
+        needleSpeed = Mathf.MoveTowards(needleSpeed, direction * maxSpeed, acceleration * dt);
+
+        float nextNeedleT = Mathf.Clamp01(needleT + needleSpeed * dt);
+        bool reachedTarget = direction > 0f
+            ? nextNeedleT >= target
+            : nextNeedleT <= target;
+
+        if (reachedTarget)
+        {
+            needleT = target;
+            needleSpeed = 0f;
+        }
+        else
+        {
+            needleT = nextNeedleT;
+        }
     }
 
     void ApplyNeedleRotation()

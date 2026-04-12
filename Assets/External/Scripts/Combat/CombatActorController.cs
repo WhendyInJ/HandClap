@@ -26,6 +26,7 @@ public class CombatActorController : MonoBehaviour
     private bool hasQueuedDecision;
     private CombatState queuedDecisionState;
     private bool dodgeSucceeded;
+    private bool feintWasPunished;
 
     void Reset()
     {
@@ -60,10 +61,11 @@ public class CombatActorController : MonoBehaviour
 
     public bool TryFakeAttack()
     {
-        if (!roundCombatActive || Motion == null || !Motion.TryPlayFakeAttack())
+        if (!roundCombatActive || Motion == null || !Motion.TryPlayFakeAttack(ResolveFeintOutcome))
             return false;
 
         hasQueuedDecision = false;
+        feintWasPunished = false;
 
         CombatState opponentState = opponentController != null
             ? opponentController.ResolutionCombatState
@@ -86,8 +88,10 @@ public class CombatActorController : MonoBehaviour
     /// </summary>
     public bool TryFeintAttack()
     {
-        if (!roundCombatActive || Motion == null || !Motion.TryPlayFeintAttack(GetAttackCooldownDuration()))
+        if (!roundCombatActive || Motion == null || !Motion.TryPlayFeintAttack(GetAttackCooldownDuration(), ResolveFeintOutcome))
             return false;
+
+        feintWasPunished = false;
 
         CombatState opponentState = opponentController != null
             ? opponentController.ResolutionCombatState
@@ -125,6 +129,9 @@ public class CombatActorController : MonoBehaviour
     /// </summary>
     public bool TryPlayStagger(float duration, bool leanForward = false, Action finishedCallback = null)
         => Motion != null && Motion.TryPlayStagger(duration, leanForward, finishedCallback);
+
+    public bool TryPlayHitReact(bool leanForward = false)
+        => Motion != null && Motion.TryPlayHitReact(leanForward);
 
     /// <summary>
     /// 현재 모션이 끝나는 즉시 휘청거림 시작 (페이크 응징 등 모션 중 요청 시 사용).
@@ -364,6 +371,7 @@ public class CombatActorController : MonoBehaviour
         {
             const string feintPunishSummary = "페인트 응징";
             LogCombatOutcome(CombatState.Attack, CombatState.Neutral, feintPunishSummary);
+            opponentController.MarkFeintPunished();
             RaiseCombatEvent(
                 CombatEventKind.FeintPunished,
                 opponentController,
@@ -475,6 +483,36 @@ public class CombatActorController : MonoBehaviour
             actorState,
             opponentState,
             summary));
+    }
+
+    void ResolveFeintOutcome()
+    {
+        if (feintWasPunished || !roundCombatActive)
+            return;
+
+        CombatState opponentState = opponentController != null
+            ? opponentController.ResolutionCombatState
+            : CombatState.Neutral;
+
+        if (opponentController != null && opponentController.IsDodgeWindowActive)
+        {
+            LogCombatOutcome(CombatState.Attack, CombatState.Dodge, "Fake beat dodge");
+            return;
+        }
+
+        const string failSummary = "Fake failed";
+        LogCombatOutcome(CombatState.Attack, opponentState, failSummary);
+        RaiseCombatEvent(
+            CombatEventKind.FeintFailed,
+            opponentController,
+            CombatState.Attack,
+            opponentState,
+            failSummary);
+    }
+
+    void MarkFeintPunished()
+    {
+        feintWasPunished = true;
     }
 
     public string BuildCombatLane(

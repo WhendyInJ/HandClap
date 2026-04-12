@@ -80,6 +80,11 @@ public class CombatMotionController : MonoBehaviour
     [Tooltip("중립으로 복귀하는 시간(초)")]
     [SerializeField] private float staggerRecoverDuration = 0.22f;
 
+    [Header("Hit React")]
+    [SerializeField, Min(0f)] private float hitReactDuration = 0.18f;
+    [SerializeField] private float hitReactAngle = 8f;
+    [SerializeField, Min(0f)] private float hitReactBackOffset = 0.06f;
+
     [Header("Balance Debug Motion")]
     [SerializeField] private float balanceLeanBackAngle = 14f;
     [SerializeField] private float balanceWobbleAngle = 9f;
@@ -116,6 +121,8 @@ public class CombatMotionController : MonoBehaviour
     private bool attackFeinted;
     private bool initialized;
     private Coroutine bodyLeanRoutine;
+    private Action fakeAttackFinishedCallback;
+    private Coroutine hitReactRoutine;
 
     CombatActorController ownerActor;
 
@@ -176,6 +183,9 @@ public class CombatMotionController : MonoBehaviour
         staggerWobbleAngle = Mathf.Max(0f, staggerWobbleAngle);
         staggerWobbleCycles = Mathf.Max(0f, staggerWobbleCycles);
         staggerRecoverDuration = Mathf.Max(0f, staggerRecoverDuration);
+        hitReactDuration = Mathf.Max(0f, hitReactDuration);
+        hitReactAngle = Mathf.Max(0f, hitReactAngle);
+        hitReactBackOffset = Mathf.Max(0f, hitReactBackOffset);
         dodgeDistance = Mathf.Max(0f, dodgeDistance);
         dodgeHeight = Mathf.Max(0f, dodgeHeight);
         dodgeOutDuration = Mathf.Max(0f, dodgeOutDuration);
@@ -205,7 +215,7 @@ public class CombatMotionController : MonoBehaviour
         return true;
     }
 
-    public bool TryPlayFakeAttack()
+    public bool TryPlayFakeAttack(Action finishedCallback = null)
     {
         Initialize();
 
@@ -217,6 +227,7 @@ public class CombatMotionController : MonoBehaviour
         attackClashWindowActive = false;
         attackResolutionComplete = true;
         attackFeinted = true;
+        fakeAttackFinishedCallback = finishedCallback;
         return true;
     }
 
@@ -224,14 +235,14 @@ public class CombatMotionController : MonoBehaviour
     /// 팔을 feintPushDistance만큼 뻗었다가 회수하는 독립 페인트 모션.
     /// 기존 DoPush 취소 방식과 달리 뻗기→회수를 명확하게 재생한다.
     /// </summary>
-    public bool TryPlayFeintAttack(float cooldownDuration)
+    public bool TryPlayFeintAttack(float cooldownDuration, Action finishedCallback = null)
     {
         Initialize();
 
         if (!CanStartMotion)
             return false;
 
-        StartCoroutine(DoFeintAttack(cooldownDuration));
+        StartCoroutine(DoFeintAttack(cooldownDuration, finishedCallback));
         return true;
     }
 
@@ -260,12 +271,32 @@ public class CombatMotionController : MonoBehaviour
         if (isPushing || isDodging || isBalancing || isStaggered)
             return false;
 
+        if (hitReactRoutine != null)
+        {
+            StopCoroutine(hitReactRoutine);
+            hitReactRoutine = null;
+        }
+
         onCooldown = false; // 남은 쿨다운 취소, 스태거가 우선
         StartCoroutine(DoStagger(duration, leanForward, finishedCallback));
         return true;
     }
 
     /// <summary>무한 스태거를 외부에서 종료. 복귀 애니메이션은 자동 재생.</summary>
+    public bool TryPlayHitReact(bool leanForward = false)
+    {
+        Initialize();
+
+        if (bodyPivot == null || isStaggered)
+            return false;
+
+        if (hitReactRoutine != null)
+            StopCoroutine(hitReactRoutine);
+
+        hitReactRoutine = StartCoroutine(DoHitReact(leanForward));
+        return true;
+    }
+
     public void StopStagger() => staggerStopped = true;
 
     public bool TryPlayBalanceDebug()
@@ -353,6 +384,7 @@ public class CombatMotionController : MonoBehaviour
         attackResolutionComplete = false;
         attackClashed = false;
         attackFeinted = false;
+        fakeAttackFinishedCallback = null;
 
         Vector3 dir = (Vector3)pushDirection.normalized;
         Vector3 pushWorldDir = GetPushWorldDirection(dir);
@@ -518,6 +550,7 @@ public class CombatMotionController : MonoBehaviour
             fakeRecoverDuration,
             EaseInOutCubic);
 
+        InvokeFakeAttackFinishedCallback();
         FinishPushState(basePos, baseRot);
 
         float cooldownAfterFake = Mathf.Max(0f, cooldownDuration * fakeCooldownMultiplier);
@@ -525,7 +558,7 @@ public class CombatMotionController : MonoBehaviour
         onCooldown = false;
     }
 
-    IEnumerator DoFeintAttack(float cooldownDuration)
+    IEnumerator DoFeintAttack(float cooldownDuration, Action finishedCallback)
     {
         isPushing = true;
         onCooldown = true;
@@ -568,11 +601,19 @@ public class CombatMotionController : MonoBehaviour
             recoilLean, 0f, recoverDuration, EaseInOutCubic);
         yield return new WaitForSeconds(recoverDuration);
 
+        finishedCallback?.Invoke();
         FinishPushState(basePos, baseRot);
 
         float cooldownAfterFeint = Mathf.Max(0f, cooldownDuration * fakeCooldownMultiplier);
         yield return new WaitForSeconds(cooldownAfterFeint);
         onCooldown = false;
+    }
+
+    void InvokeFakeAttackFinishedCallback()
+    {
+        Action callback = fakeAttackFinishedCallback;
+        fakeAttackFinishedCallback = null;
+        callback?.Invoke();
     }
 
     void FinishPushState(Vector3 basePos, Quaternion baseRot)
@@ -589,6 +630,7 @@ public class CombatMotionController : MonoBehaviour
         attackResolutionComplete = false;
         attackClashed = false;
         attackFeinted = false;
+        fakeAttackFinishedCallback = null;
         isPushing = false;
     }
 
@@ -683,6 +725,49 @@ public class CombatMotionController : MonoBehaviour
 
         yield return new WaitForSeconds(Mathf.Max(0f, cooldownDuration));
         onCooldown = false;
+    }
+
+    IEnumerator DoHitReact(bool leanForward)
+    {
+        float duration = Mathf.Max(0f, hitReactDuration);
+        if (duration <= 0f)
+        {
+            hitReactRoutine = null;
+            yield break;
+        }
+
+        float leanSign = GetBodyLeanSign();
+        float impactAngle = Mathf.Abs(hitReactAngle) * (leanForward ? leanSign : -leanSign);
+        Vector3 impactOffset = new Vector3(-leanSign * hitReactBackOffset, 0f, 0f);
+        float enterDuration = duration * 0.35f;
+        float recoverDuration = duration - enterDuration;
+        float elapsed = 0f;
+
+        while (elapsed < enterDuration && !isStaggered)
+        {
+            elapsed += Time.deltaTime;
+            float t = EaseOutCubic(Mathf.Clamp01(elapsed / Mathf.Max(0.0001f, enterDuration)));
+            bodyPivot.SetLocalPositionAndRotation(
+                Vector3.Lerp(baseBodyLocalPos, baseBodyLocalPos + impactOffset, t),
+                baseBodyLocalRot * Quaternion.Euler(0f, 0f, Mathf.Lerp(0f, impactAngle, t)));
+            yield return null;
+        }
+
+        elapsed = 0f;
+        while (elapsed < recoverDuration && !isStaggered)
+        {
+            elapsed += Time.deltaTime;
+            float t = EaseInOutCubic(Mathf.Clamp01(elapsed / Mathf.Max(0.0001f, recoverDuration)));
+            bodyPivot.SetLocalPositionAndRotation(
+                Vector3.Lerp(baseBodyLocalPos + impactOffset, baseBodyLocalPos, t),
+                baseBodyLocalRot * Quaternion.Euler(0f, 0f, Mathf.Lerp(impactAngle, 0f, t)));
+            yield return null;
+        }
+
+        if (!isStaggered)
+            bodyPivot.SetLocalPositionAndRotation(baseBodyLocalPos, baseBodyLocalRot);
+
+        hitReactRoutine = null;
     }
 
     IEnumerator DoStagger(float duration, bool leanForward, Action finishedCallback)

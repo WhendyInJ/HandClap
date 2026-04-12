@@ -278,7 +278,15 @@ public class ClashTugMinigameController : MonoBehaviour
         }
 
         if (enemyController != null && enemyController.Health != null)
-            enemyController.Health.ApplyDamage(totalDamage * enemyDamageRatio);
+            enemyController.Health.ApplyDamage(totalDamage * enemyDamageRatio * GetEnemyIncomingDamageMultiplier());
+    }
+
+    float GetEnemyIncomingDamageMultiplier()
+    {
+        if (enemyController != null && enemyController.TryGetComponent(out EnemyController enemy))
+            return enemy.IncomingDamageMultiplier;
+
+        return 1f;
     }
 
     ClashMinigameResult EvaluateResult()
