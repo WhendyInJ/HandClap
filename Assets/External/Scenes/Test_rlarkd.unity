@@ -596,6 +596,25 @@ RectTransform:
   m_CorrespondingSourceObject: {fileID: 523189126276775981, guid: 3591442d994429b4ab83f7924b699f58, type: 3}
   m_PrefabInstance: {fileID: 8015512522754639253}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &591096438 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 4507017493115377006, guid: 62e4c1f45c079dc4dabd568133b24752, type: 3}
+  m_PrefabInstance: {fileID: 9220234810726935803}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &591096441
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 591096438}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4617a7188f900344c9965ccae033bf08, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SpriteFillController
+  mat: {fileID: 2100000, guid: 6e5e1209d2a804c48b4e56405a3b3b61, type: 2}
+  fill: 1
 --- !u!1 &678678025
 GameObject:
   m_ObjectHideFlags: 0
@@ -1689,10 +1708,17 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 3573996816580359699, guid: 62e4c1f45c079dc4dabd568133b24752, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 6e5e1209d2a804c48b4e56405a3b3b61, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 4507017493115377006, guid: 62e4c1f45c079dc4dabd568133b24752, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 591096441}
   m_SourcePrefab: {fileID: 100100000, guid: 62e4c1f45c079dc4dabd568133b24752, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
