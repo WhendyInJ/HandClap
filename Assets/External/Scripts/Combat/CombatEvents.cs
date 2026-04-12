@@ -12,6 +12,12 @@ public enum CombatEventKind
     /// 페인트 동작을 읽고 반격에 성공한 경우에 발생한다.
     /// </summary>
     FeintPunished,
+
+    /// <summary>
+    /// Feint ended without the opponent dodging or punishing it.
+    /// The actor who used the feint should stagger.
+    /// </summary>
+    FeintFailed,
 }
 
 public readonly struct CombatEventData

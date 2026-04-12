@@ -3,6 +3,7 @@ Shader "Custom/SpriteFill"
     Properties
     {
         _MainTex ("Texture", 2D) = "white" {}
+        _Color ("Tint", Color) = (1,1,1,1)
         _Fill ("Fill Amount", Range(0,1)) = 1
     }
     SubShader
@@ -21,6 +22,7 @@ Shader "Custom/SpriteFill"
             #include "UnityCG.cginc"
 
             sampler2D _MainTex;
+            fixed4 _Color;
             float _Fill;
 
             struct appdata
@@ -46,7 +48,7 @@ Shader "Custom/SpriteFill"
             fixed4 frag (v2f i) : SV_Target
             {
                 if (i.uv.y > _Fill) discard;
-                return tex2D(_MainTex, i.uv);
+                return tex2D(_MainTex, i.uv) * _Color;
             }
             ENDCG
         }
