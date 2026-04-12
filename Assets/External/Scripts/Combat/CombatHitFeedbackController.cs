@@ -17,6 +17,15 @@ public class CombatHitFeedbackController : MonoBehaviour
     [SerializeField, Min(0f)] private float randomCircleRadius = 0.25f;
     [SerializeField] private bool useSpawnPointRotation = true;
     [SerializeField, Min(0f)] private float destroyAfterSeconds = 1.5f;
+    [SerializeField] private bool suppressHitPrefabAfterHandContact = true;
+    [SerializeField, Min(0f)] private float handContactSuppressWindow = 0.15f;
+
+    [Header("Hit Effect Animation")]
+    [SerializeField] private bool animateHitPrefabOnSpawn = true;
+    [SerializeField, Min(0f)] private float effectStartScaleMultiplier = 1.35f;
+    [SerializeField, Min(0f)] private float effectShrinkScaleMultiplier = 0.82f;
+    [SerializeField, Min(0f)] private float effectFadeInDuration = 0.045f;
+    [SerializeField, Min(0f)] private float effectSettleDuration = 0.12f;
 
     [Header("Hit React")]
     [SerializeField] private bool playHitReact = true;
@@ -48,7 +57,9 @@ public class CombatHitFeedbackController : MonoBehaviour
         if (!TryGetHitTarget(eventData, out CombatActorController hitTarget, out bool hitWillStagger))
             return;
 
-        SpawnHitPrefab(hitTarget);
+        if (!ShouldSuppressHitPrefab())
+            SpawnHitPrefab(hitTarget);
+
         PlayHitReact(hitTarget, hitWillStagger);
     }
 
@@ -91,6 +102,7 @@ public class CombatHitFeedbackController : MonoBehaviour
             : hitPrefab.transform.rotation;
 
         GameObject instance = Instantiate(hitPrefab, spawnPosition, spawnRotation, parentOverride);
+        PlayHitEffectSpawnAnimation(instance);
 
         if (destroyAfterSeconds > 0f)
             Destroy(instance, destroyAfterSeconds);
@@ -105,6 +117,28 @@ public class CombatHitFeedbackController : MonoBehaviour
             return;
 
         hitTarget.TryPlayHitReact();
+    }
+
+    bool ShouldSuppressHitPrefab()
+    {
+        return suppressHitPrefabAfterHandContact
+            && CombatHandContactFeedbackController.WasContactPlayedRecently(handContactSuppressWindow);
+    }
+
+    void PlayHitEffectSpawnAnimation(GameObject instance)
+    {
+        if (!animateHitPrefabOnSpawn || instance == null)
+            return;
+
+        HitEffectSpawnAnimator animator = instance.GetComponent<HitEffectSpawnAnimator>();
+        if (animator == null)
+            animator = instance.AddComponent<HitEffectSpawnAnimator>();
+
+        animator.Play(
+            effectStartScaleMultiplier,
+            effectShrinkScaleMultiplier,
+            effectFadeInDuration,
+            effectSettleDuration);
     }
 
     Transform GetSpawnPoint(CombatActorController hitTarget)

@@ -16,6 +16,12 @@ public class CombatActorController : MonoBehaviour
     [SerializeField] private CombatActorController opponentController;
     [SerializeField] private bool enableCombatDebugLogs = true;
 
+    [Header("Attack Meeting")]
+    [Tooltip("두 손의 뻗은 비율 차이가 이 값 이하이면 중간지점 충돌(AttackClashed)로 판정. 예: 0.15 = ±15%")]
+    [SerializeField, Range(0f, 0.5f)] private float midpointClashTolerance = 0.15f;
+    [Tooltip("공격 만남을 감지하는 손바닥 간 최대 거리(월드 단위)")]
+    [SerializeField, Min(0f)] private float handMeetingRadius = 0.5f;
+
     [Header("Combat Components")]
     [SerializeField] private CombatActorStats stats;
     [SerializeField] private CombatHealth health;
@@ -45,10 +51,10 @@ public class CombatActorController : MonoBehaviour
 
     void LateUpdate()
     {
-        if (!hasQueuedDecision)
-            return;
+        if (hasQueuedDecision)
+            ResolveQueuedDecision();
 
-        ResolveQueuedDecision();
+        TryEvaluateHandMeeting();
     }
 
     public bool TryPush()
@@ -224,6 +230,13 @@ public class CombatActorController : MonoBehaviour
     public bool IsAttackClashWindowActive => Motion != null && Motion.IsAttackClashWindowActive;
     public bool CanFakeAttack => roundCombatActive && Motion != null && Motion.CanFakeAttack;
     public bool IsDodgeWindowActive => Motion != null && Motion.IsDodging;
+    public bool IsHandContactActive => Motion != null && Motion.IsHandContactActive;
+    public float HandExtensionNormalized => Motion != null ? Motion.HandExtensionNormalized : 0f;
+    public CombatHandExtensionPhase HandExtensionPhase => Motion != null
+        ? Motion.HandExtensionPhase
+        : CombatHandExtensionPhase.None;
+    public Transform PalmContactPoint => Motion != null ? Motion.PalmContactPoint : transform;
+    public Vector3 PalmContactWorldPosition => Motion != null ? Motion.PalmContactWorldPosition : transform.position;
     /// <summary>
     /// 현재 페인트(페이크/페인트 모션) 중인지 여부.
     /// 플레이어 페이크 취소(PlayFakeAttackRecovery)와 AI 페인트 모션(DoFeintAttack) 모두 해당.
@@ -395,6 +408,28 @@ public class CombatActorController : MonoBehaviour
             hitSummary);
     }
 
+    /// <summary>
+    /// LateUpdate에서 매 프레임 호출. Player 측만 평가해 이중 발화를 막는다.
+    /// 두 손바닥이 handMeetingRadius 안에 들어오면 뻗기 비율로 충돌 유형을 판정한다.
+    /// </summary>
+    void TryEvaluateHandMeeting()
+    {
+        if (actorSide != CombatActorSide.Player)
+            return;
+
+        if (!roundCombatActive || Motion == null || opponentController == null)
+            return;
+
+        if (!Motion.IsAttackClashWindowActive || !opponentController.Motion.IsAttackClashWindowActive)
+            return;
+
+        float dist = Vector3.Distance(PalmContactWorldPosition, opponentController.PalmContactWorldPosition);
+        if (dist > handMeetingRadius)
+            return;
+
+        ResolveAttackMeetingByExtension(opponentController);
+    }
+
     bool TryResolveAttackClash(CombatActorController opponent)
     {
         if (Motion == null || opponent == null || opponent.Motion == null)
@@ -403,25 +438,55 @@ public class CombatActorController : MonoBehaviour
         if (!Motion.IsAttackClashWindowActive || !opponent.Motion.IsAttackClashWindowActive)
             return false;
 
+        ResolveAttackMeetingByExtension(opponent);
+        return true;
+    }
+
+    /// <summary>
+    /// 두 액터의 HandExtensionNormalized 비율을 비교해 중간지점 충돌 또는 우세/열세를 판정한다.
+    /// midpointClashTolerance 이내 차이이면 AttackClashed, 초과이면 AttackMeetingWin/Loss.
+    /// </summary>
+    void ResolveAttackMeetingByExtension(CombatActorController opponent)
+    {
         Motion.MarkAttackClashed();
         opponent.Motion.MarkAttackClashed();
 
-        string clashSummary = CombatRuleResolver.Resolve(CombatState.Attack, CombatState.Attack).Summary;
-        LogCombatOutcome(CombatState.Attack, CombatState.Attack, clashSummary);
-        opponent.LogCombatOutcome(CombatState.Attack, CombatState.Attack, clashSummary);
-        RaiseCombatEvent(
-            CombatEventKind.AttackClashed,
-            opponent,
-            CombatState.Attack,
-            CombatState.Attack,
-            clashSummary);
-        opponent.RaiseCombatEvent(
-            CombatEventKind.AttackClashed,
-            this,
-            CombatState.Attack,
-            CombatState.Attack,
-            clashSummary);
-        return true;
+        float myExt = HandExtensionNormalized;
+        float opExt = opponent.HandExtensionNormalized;
+        float extensionDiff = myExt - opExt;  // 양수 = 내가 더 멀리 뻗음
+
+        if (Mathf.Abs(extensionDiff) <= midpointClashTolerance)
+        {
+            // 중간지점 충돌 — 쌍방 동등
+            string clashSummary = CombatRuleResolver.Resolve(CombatState.Attack, CombatState.Attack).Summary;
+            LogCombatOutcome(CombatState.Attack, CombatState.Attack, clashSummary);
+            opponent.LogCombatOutcome(CombatState.Attack, CombatState.Attack, clashSummary);
+            RaiseCombatEvent(CombatEventKind.AttackClashed, opponent,
+                CombatState.Attack, CombatState.Attack, clashSummary);
+            opponent.RaiseCombatEvent(CombatEventKind.AttackClashed, this,
+                CombatState.Attack, CombatState.Attack, clashSummary);
+            return;
+        }
+
+        // 우세/열세 판정
+        float maxRange = 1f - midpointClashTolerance;
+        float advantageRatio = maxRange > 0f
+            ? Mathf.Clamp01((Mathf.Abs(extensionDiff) - midpointClashTolerance) / maxRange)
+            : 1f;
+
+        CombatActorController winner = extensionDiff > 0f ? this : opponent;
+        CombatActorController loser  = extensionDiff > 0f ? opponent : this;
+
+        string winSummary  = $"공격 만남 우세 ({advantageRatio * 100f:F0}%)";
+        string lossSummary = $"공격 만남 열세 ({advantageRatio * 100f:F0}%)";
+
+        winner.LogCombatOutcome(CombatState.Attack, CombatState.Attack, winSummary);
+        loser.LogCombatOutcome(CombatState.Attack, CombatState.Attack, lossSummary);
+
+        winner.RaiseCombatEvent(CombatEventKind.AttackMeetingWin, loser,
+            CombatState.Attack, CombatState.Attack, winSummary, advantageRatio);
+        loser.RaiseCombatEvent(CombatEventKind.AttackMeetingLoss, winner,
+            CombatState.Attack, CombatState.Attack, lossSummary, advantageRatio);
     }
 
     void RegisterDodgeSuccess()
@@ -474,7 +539,8 @@ public class CombatActorController : MonoBehaviour
         CombatActorController opponent,
         CombatState actorState,
         CombatState opponentState,
-        string summary)
+        string summary,
+        float advantageRatio = 0f)
     {
         CombatEventRaised?.Invoke(new CombatEventData(
             kind,
@@ -482,7 +548,8 @@ public class CombatActorController : MonoBehaviour
             opponent,
             actorState,
             opponentState,
-            summary));
+            summary,
+            advantageRatio));
     }
 
     void ResolveFeintOutcome()

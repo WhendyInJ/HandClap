@@ -1,7 +1,22 @@
+using UnityEngine;
+
 public enum CombatEventKind
 {
     AttackHit,
     AttackClashed,
+
+    /// <summary>
+    /// 공격 만남에서 더 멀리 뻗은 쪽(우세한 쪽)에게 발생.
+    /// AdvantageRatio(0~1)로 우위 강도를 나타낸다.
+    /// </summary>
+    AttackMeetingWin,
+
+    /// <summary>
+    /// 공격 만남에서 덜 뻗은 쪽(열세한 쪽)에게 발생.
+    /// AdvantageRatio(0~1)로 상대의 우위 강도를 나타낸다.
+    /// </summary>
+    AttackMeetingLoss,
+
     AttackDodged,
     AttackFeinted,
     DodgeSucceeded,
@@ -28,7 +43,8 @@ public readonly struct CombatEventData
         CombatActorController opponent,
         CombatState actorState,
         CombatState opponentState,
-        string summary)
+        string summary,
+        float advantageRatio = 0f)
     {
         Kind = kind;
         Actor = actor;
@@ -36,6 +52,7 @@ public readonly struct CombatEventData
         ActorState = actorState;
         OpponentState = opponentState;
         Summary = summary;
+        AdvantageRatio = Mathf.Clamp01(advantageRatio);
     }
 
     public CombatEventKind Kind { get; }
@@ -44,4 +61,10 @@ public readonly struct CombatEventData
     public CombatState ActorState { get; }
     public CombatState OpponentState { get; }
     public string Summary { get; }
+
+    /// <summary>
+    /// 공격 만남 우위 강도 (0=동등, 1=최대 우세).
+    /// AttackMeetingWin / AttackMeetingLoss 이외에는 0.
+    /// </summary>
+    public float AdvantageRatio { get; }
 }

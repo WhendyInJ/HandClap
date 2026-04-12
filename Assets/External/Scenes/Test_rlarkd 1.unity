@@ -185,7 +185,7 @@ Transform:
   - {fileID: 2095257619}
   - {fileID: 1244855161}
   - {fileID: 650170186}
-  - {fileID: 1487748990}
+  - {fileID: 1912162686}
   - {fileID: 1308105341}
   - {fileID: 1433139826}
   - {fileID: 1143337145}
@@ -1179,6 +1179,68 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 351859743}
   m_CullTransparentMesh: 1
+--- !u!1 &352059186
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 352059187}
+  m_Layer: 0
+  m_Name: GameObject
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &352059187
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 352059186}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.258, y: -0.024, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1577823064}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &382015907
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 382015908}
+  m_Layer: 0
+  m_Name: GameObject
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &382015908
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 382015907}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.274, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 2006566614}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &392093612
 GameObject:
   m_ObjectHideFlags: 0
@@ -4593,11 +4655,11 @@ Transform:
   m_GameObject: {fileID: 1487748989}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -6.87015, y: -0.5021299, z: 0}
+  m_LocalPosition: {x: 3.47, y: 6.08, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 44231747}
+  m_Father: {fileID: 1912162686}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!212 &1487748991
 SpriteRenderer:
@@ -4784,7 +4846,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 3542343939276224156, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: maxHealth
-      value: 15
+      value: 10
       objectReference: {fileID: 0}
     - target: {fileID: 3542343939276224156, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: healthFill
@@ -4795,20 +4857,48 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 3635271369414605121, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
+      propertyPath: bodyPivot
+      value: 
+      objectReference: {fileID: 1317703823}
+    - target: {fileID: 3635271369414605121, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
+      propertyPath: handPivot
+      value: 
+      objectReference: {fileID: 1577823064}
+    - target: {fileID: 3635271369414605121, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
+      propertyPath: handVisual
+      value: 
+      objectReference: {fileID: 145132002}
+    - target: {fileID: 3635271369414605121, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: hitReactAngle
       value: 17
+      objectReference: {fileID: 0}
+    - target: {fileID: 3635271369414605121, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
+      propertyPath: hitstopDuration
+      value: 0.3
+      objectReference: {fileID: 0}
+    - target: {fileID: 3635271369414605121, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
+      propertyPath: pushDirection.x
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 3635271369414605121, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: hitReactDuration
       value: 0.2
       objectReference: {fileID: 0}
     - target: {fileID: 3635271369414605121, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
+      propertyPath: palmContactPoint
+      value: 
+      objectReference: {fileID: 352059187}
+    - target: {fileID: 3635271369414605121, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: balanceWobbleTime
-      value: 0.7
+      value: 0.9
       objectReference: {fileID: 0}
     - target: {fileID: 3635271369414605121, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: hitReactBackOffset
       value: 0.2
+      objectReference: {fileID: 0}
+    - target: {fileID: 3635271369414605121, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
+      propertyPath: pushScaleMultiplier
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 3956896541116349222, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: m_SortingOrder
@@ -4816,7 +4906,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4182225252941181897, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: actAttackWeight
-      value: 0.55
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 4182225252941181897, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: reactDodgeWeight
@@ -4824,11 +4914,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4182225252941181897, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: actionCooldownMax
-      value: 3.5
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 4182225252941181897, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: actionCooldownMin
-      value: 2
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 4182225252941181897, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: battleUiController
@@ -4836,7 +4926,7 @@ PrefabInstance:
       objectReference: {fileID: 2015795231}
     - target: {fileID: 4182225252941181897, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: actFakeAttackWeight
-      value: 0.45
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4182225252941181897, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: attackTelegraphFill
@@ -4844,11 +4934,11 @@ PrefabInstance:
       objectReference: {fileID: 1580132048}
     - target: {fileID: 4182225252941181897, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: reactStayNeutralWeight
-      value: 0.4
+      value: 0.7
       objectReference: {fileID: 0}
     - target: {fileID: 4182225252941181897, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: reactCounterAttackWeight
-      value: 0.3
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4182225252941181897, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: clashTugMinigameController
@@ -4924,7 +5014,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5630093104510174335, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: baseAttackDamage
-      value: 2
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 5776537366310510248, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: m_Color.b
@@ -4996,6 +5086,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 7398159246008964271, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       insertIndex: 1
       addedObject: {fileID: 1267534954}
+    - targetCorrespondingSourceObject: {fileID: 1393518079072092811, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 352059187}
     - targetCorrespondingSourceObject: {fileID: 8788742925907382159, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       insertIndex: -1
       addedObject: {fileID: 781582950}
@@ -6037,7 +6130,7 @@ MonoBehaviour:
   roundChoiceCanvas: {fileID: 998497287}
   canvas_Slot: {fileID: 1715228023}
   nextRoundCountdownText: {fileID: 1271549631}
-  roundDurationSeconds: 300
+  roundDurationSeconds: 100000000
   totalRounds: 3
   roundSettlingSeconds: 1.5
   rerollAutoCloseDelay: 3
@@ -6068,6 +6161,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1834896563}
   - component: {fileID: 1834896562}
+  - component: {fileID: 1834896564}
   m_Layer: 0
   m_Name: CombatFeedBack
   m_TagString: Untagged
@@ -6092,10 +6186,17 @@ MonoBehaviour:
   playerHitSpawnPoint: {fileID: 2006566614}
   enemyHitSpawnPoint: {fileID: 1577823064}
   hitPrefab: {fileID: 6986038429852177633, guid: baf29e916c83f1047be86ed8f452a9b2, type: 3}
-  parentOverride: {fileID: 0}
+  parentOverride: {fileID: 1834896563}
   randomCircleRadius: 0.25
   useSpawnPointRotation: 1
   destroyAfterSeconds: 0.3
+  suppressHitPrefabAfterHandContact: 1
+  handContactSuppressWindow: 0.15
+  animateHitPrefabOnSpawn: 1
+  effectStartScaleMultiplier: 1.35
+  effectShrinkScaleMultiplier: 0.78
+  effectFadeInDuration: 0.15
+  effectSettleDuration: 0.15
   playHitReact: 1
   skipHitReactWhenHitWillStagger: 1
 --- !u!4 &1834896563
@@ -6113,6 +6214,38 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1834896564
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1834896561}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8479fbdc15900164dbc69219b5bb3858, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CombatHandContactFeedbackController
+  playerController: {fileID: 438342679581519013}
+  enemyController: {fileID: 1244352425}
+  playerPalmContactPoint: {fileID: 382015908}
+  enemyPalmContactPoint: {fileID: 352059187}
+  contactRadius: 0.2
+  resetDistanceMultiplier: 1.4
+  requireAtLeastOneHandExtending: 1
+  requirePalmClash: 1
+  contactCooldown: 0.08
+  contactEffectPrefab: {fileID: 6986038429852177633, guid: baf29e916c83f1047be86ed8f452a9b2, type: 3}
+  parentOverride: {fileID: 1834896563}
+  alignEffectToPalmLine: 1
+  randomCircleRadius: 0
+  destroyAfterSeconds: 0.3
+  animateEffectOnSpawn: 1
+  effectStartScaleMultiplier: 1.35
+  effectShrinkScaleMultiplier: 0.78
+  effectFadeInDuration: 0.15
+  effectSettleDuration: 0.15
+  logContactState: 0
 --- !u!1 &1875855180
 GameObject:
   m_ObjectHideFlags: 0
@@ -6204,6 +6337,38 @@ SpriteRenderer:
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
   m_SpriteSortPoint: 0
+--- !u!1 &1912162685
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1912162686}
+  m_Layer: 0
+  m_Name: GameObject
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1912162686
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1912162685}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -10.5, y: -6.8, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1487748990}
+  m_Father: {fileID: 44231747}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!224 &1918363519 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 6529356043784353513, guid: 3591442d994429b4ab83f7924b699f58, type: 3}
@@ -6864,12 +7029,24 @@ PrefabInstance:
       value: 17
       objectReference: {fileID: 0}
     - target: {fileID: 7136132076329805533, guid: 6103ca1899a30e24a8e01a1535ae3f82, type: 3}
+      propertyPath: hitstopDuration
+      value: 0.3
+      objectReference: {fileID: 0}
+    - target: {fileID: 7136132076329805533, guid: 6103ca1899a30e24a8e01a1535ae3f82, type: 3}
       propertyPath: hitReactDuration
       value: 0.2
       objectReference: {fileID: 0}
     - target: {fileID: 7136132076329805533, guid: 6103ca1899a30e24a8e01a1535ae3f82, type: 3}
+      propertyPath: palmContactPoint
+      value: 
+      objectReference: {fileID: 382015908}
+    - target: {fileID: 7136132076329805533, guid: 6103ca1899a30e24a8e01a1535ae3f82, type: 3}
       propertyPath: hitReactBackOffset
       value: 0.2
+      objectReference: {fileID: 0}
+    - target: {fileID: 7136132076329805533, guid: 6103ca1899a30e24a8e01a1535ae3f82, type: 3}
+      propertyPath: pushScaleMultiplier
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -6877,6 +7054,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 4597249756276180381, guid: 6103ca1899a30e24a8e01a1535ae3f82, type: 3}
       insertIndex: 1
       addedObject: {fileID: 886145139}
+    - targetCorrespondingSourceObject: {fileID: 4798023246548885485, guid: 6103ca1899a30e24a8e01a1535ae3f82, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 382015908}
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 6103ca1899a30e24a8e01a1535ae3f82, type: 3}
 --- !u!114 &438342679581519013 stripped

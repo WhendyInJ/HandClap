@@ -10,6 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2056752467230585460}
   - component: {fileID: 3675178525147068408}
+  - component: {fileID: -4625300704985230857}
   m_Layer: 0
   m_Name: Attack_0
   m_TagString: Untagged
@@ -91,3 +92,15 @@ SpriteRenderer:
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
   m_SpriteSortPoint: 0
+--- !u!114 &-4625300704985230857
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6986038429852177633}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d12c590105f9ac4e94a303e07257fbb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::HitEffectSpawnAnimator

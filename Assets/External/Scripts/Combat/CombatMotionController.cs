@@ -2,6 +2,14 @@ using System;
 using System.Collections;
 using UnityEngine;
 
+public enum CombatHandExtensionPhase
+{
+    None,
+    Start,
+    Middle,
+    Extended,
+}
+
 [DisallowMultipleComponent]
 public class CombatMotionController : MonoBehaviour
 {
@@ -11,6 +19,11 @@ public class CombatMotionController : MonoBehaviour
     [Header("Hand Object")]
     [SerializeField] private Transform handPivot;
     [SerializeField] private Transform handVisual;
+
+    [Header("Hand Contact")]
+    [SerializeField] private Transform palmContactPoint;
+    [SerializeField] private bool extendAttackToOpponentContactPoint = true;
+    [SerializeField] private float opponentContactReachOffset = 0f;
 
     [Header("Idle Motion")]
     [SerializeField] private float idleBobAmplitude = 0.12f;
@@ -37,6 +50,8 @@ public class CombatMotionController : MonoBehaviour
     [SerializeField] private float holdDuration = 0.07f;
     [SerializeField] private float retractDuration = 0.30f;
     [SerializeField] private float cooldown = 0.35f;
+    [SerializeField, Range(0f, 1f)] private float attackStartPhaseEndNormalized = 0.33f;
+    [SerializeField, Range(0f, 1f)] private float attackMiddlePhaseEndNormalized = 0.85f;
 
     [Header("Fake Attack")]
     [SerializeField] private float fakePullBackDistance = 0.35f;
@@ -85,6 +100,12 @@ public class CombatMotionController : MonoBehaviour
     [SerializeField] private float hitReactAngle = 8f;
     [SerializeField, Min(0f)] private float hitReactBackOffset = 0.06f;
 
+    [Header("Hitstop")]
+    [Tooltip("손이 만났을 때 동작을 동결하는 시간(초). 0이면 히트스탑 없음.")]
+    [SerializeField, Min(0f)] private float hitstopDuration = 0.08f;
+    [Tooltip("히트스탑 진입 순간 손 비주얼 크기 배율. 1 초과 = 팝, 1 미만 = 스쿼시.")]
+    [SerializeField, Range(0.5f, 2f)] private float hitstopScaleMultiplier = 1.2f;
+
     [Header("Balance Debug Motion")]
     [SerializeField] private float balanceLeanBackAngle = 14f;
     [SerializeField] private float balanceWobbleAngle = 9f;
@@ -120,6 +141,10 @@ public class CombatMotionController : MonoBehaviour
     private bool attackClashed;
     private bool attackFeinted;
     private bool initialized;
+    private float handExtensionNormalized;
+    private CombatHandExtensionPhase handExtensionPhase;
+    private bool hasLockedOpponentContactWorldPosition;
+    private Vector3 lockedOpponentContactWorldPosition;
     private Coroutine bodyLeanRoutine;
     private Action fakeAttackFinishedCallback;
     private Coroutine hitReactRoutine;
@@ -137,6 +162,11 @@ public class CombatMotionController : MonoBehaviour
     public bool CanFakeAttack => IsAttackFakeWindowActive && !attackFakeRequested && !attackClashed;
     public bool IsAttackResolutionComplete => attackResolutionComplete;
     public bool IsAttackFeinted => attackFeinted;
+    public bool IsHandContactActive => isPushing && handExtensionPhase != CombatHandExtensionPhase.None;
+    public float HandExtensionNormalized => handExtensionNormalized;
+    public CombatHandExtensionPhase HandExtensionPhase => handExtensionPhase;
+    public Transform PalmContactPoint => palmContactPoint != null ? palmContactPoint : handPivot;
+    public Vector3 PalmContactWorldPosition => PalmContactPoint != null ? PalmContactPoint.position : transform.position;
     public float BaseCooldown => cooldown;
 
     void Awake()
@@ -161,12 +191,20 @@ public class CombatMotionController : MonoBehaviour
     {
         idleBobAmplitude = Mathf.Max(0f, idleBobAmplitude);
         idleBobSpeed = Mathf.Max(0f, idleBobSpeed);
+        opponentContactReachOffset = Mathf.Max(0f, opponentContactReachOffset);
         windupDuration = Mathf.Max(0f, windupDuration);
         windupDistance = Mathf.Max(0f, windupDistance);
         pushOutDuration = Mathf.Max(0f, pushOutDuration);
         holdDuration = Mathf.Max(0f, holdDuration);
         retractDuration = Mathf.Max(0f, retractDuration);
         cooldown = Mathf.Max(0f, cooldown);
+        hitstopDuration = Mathf.Max(0f, hitstopDuration);
+        hitstopScaleMultiplier = Mathf.Clamp(hitstopScaleMultiplier, 0.5f, 2f);
+        attackStartPhaseEndNormalized = Mathf.Clamp01(attackStartPhaseEndNormalized);
+        attackMiddlePhaseEndNormalized = Mathf.Clamp(
+            attackMiddlePhaseEndNormalized,
+            attackStartPhaseEndNormalized,
+            1f);
         fakePullBackDistance = Mathf.Max(0f, fakePullBackDistance);
         fakePullBackDuration = Mathf.Max(0f, fakePullBackDuration);
         fakeRecoverDuration = Mathf.Max(0f, fakeRecoverDuration);
@@ -384,6 +422,8 @@ public class CombatMotionController : MonoBehaviour
         attackResolutionComplete = false;
         attackClashed = false;
         attackFeinted = false;
+        SetHandExtensionPhase(CombatHandExtensionPhase.None, 0f);
+        LockOpponentContactWorldPosition();
         fakeAttackFinishedCallback = null;
 
         Vector3 dir = (Vector3)pushDirection.normalized;
@@ -395,12 +435,13 @@ public class CombatMotionController : MonoBehaviour
         Vector3 idlePos = handPivot.position;
         Vector3 basePos = GetBaseHandWorldPosition();
         Vector3 windupPos = basePos - pushWorldDir * windupDistance;
-        Vector3 peakPos = basePos + pushWorldDir * pushDistance;
 
         if (bodyPivot != null)
             bodyPivot.localRotation = baseBodyLocalRot;
 
         handPivot.rotation = baseRot;
+        Vector3 palmOffsetFromPivot = GetPalmContactWorldOffsetFromPivot();
+        Vector3 peakPos = GetAttackPeakWorldPosition(basePos, pushWorldDir, palmOffsetFromPivot);
 
         Vector3 bodyPeakPos = baseBodyLocalPos
             + dir * (pushDistance * bodyFollowRatio)
@@ -433,11 +474,18 @@ public class CombatMotionController : MonoBehaviour
             windupAngle, pushAngle,
             pushOutDuration, EaseOutBack);
 
+        Vector3 GetDynamicPeakPos()
+        {
+            peakPos = GetAttackPeakWorldPosition(basePos, pushWorldDir, palmOffsetFromPivot);
+            return peakPos;
+        }
+
         yield return LerpPivotAndScale(
-            windupPos, peakPos,
+            windupPos, GetDynamicPeakPos,
             handVisual.localScale, stretchScale,
             baseRot, pushOutDuration, EaseOutBack,
-            IsAttackFakeRequested);
+            IsAttackInterrupted,   // 페이크 또는 충돌 감지 시 즉시 중단
+            SetHandExtensionProgress);
 
         if (attackFakeRequested)
         {
@@ -445,11 +493,29 @@ public class CombatMotionController : MonoBehaviour
             yield break;
         }
 
+        SetHandExtensionPhase(CombatHandExtensionPhase.Extended, 1f);
         attackFakeWindowActive = false;
         impactCallback?.Invoke();
 
         if (attackClashed)
         {
+            // ── 히트스탑: 충돌 순간 스케일 팝 + 몸통 동결 + 프리즈 ──────────
+            if (hitstopDuration > 0f)
+            {
+                if (Mathf.Abs(hitstopScaleMultiplier - 1f) > 0.001f)
+                    handVisual.localScale = handVisual.localScale * hitstopScaleMultiplier;
+
+                // 몸통 기울기 코루틴 중단 → 현재 각도에서 동결
+                if (bodyLeanRoutine != null)
+                {
+                    StopCoroutine(bodyLeanRoutine);
+                    bodyLeanRoutine = null;
+                }
+
+                yield return new WaitForSeconds(hitstopDuration);
+            }
+            // ─────────────────────────────────────────────────────────────────
+
             yield return RecoverPushFromCurrentPose(basePos, baseRot, cooldownDuration);
             yield break;
         }
@@ -460,11 +526,15 @@ public class CombatMotionController : MonoBehaviour
         {
             elapsed += Time.deltaTime;
             float t = Mathf.Clamp01(elapsed / holdDuration);
+            peakPos = GetDynamicPeakPos();
+            handPivot.SetPositionAndRotation(peakPos, baseRot);
             handPivot.rotation = baseRot;
             handVisual.localScale = Vector3.Lerp(stretchScale, bigUniform, t);
             yield return null;
         }
 
+        SetHandExtensionPhase(CombatHandExtensionPhase.None, 0f);
+        peakPos = GetDynamicPeakPos();
         StartBodyLean(
             bodyPeakPos, baseBodyLocalPos,
             pushAngle, 0f,
@@ -509,6 +579,7 @@ public class CombatMotionController : MonoBehaviour
         float leanSign,
         float cooldownDuration)
     {
+        SetHandExtensionPhase(CombatHandExtensionPhase.None, 0f);
         attackFakeWindowActive = false;
         attackClashWindowActive = false;
         attackResolutionComplete = true;
@@ -564,6 +635,8 @@ public class CombatMotionController : MonoBehaviour
         onCooldown = true;
         attackResolutionComplete = true;
         attackFeinted = true;
+        SetHandExtensionPhase(CombatHandExtensionPhase.None, 0f);
+        LockOpponentContactWorldPosition();
 
         Vector3 basePos    = GetBaseHandWorldPosition();
         Quaternion baseRot = GetBaseHandWorldRotation();
@@ -584,10 +657,13 @@ public class CombatMotionController : MonoBehaviour
         yield return LerpPivotAndScale(
             handPivot.position, extendPos,
             handVisual.localScale, baseVisualLocalScale * 1.15f,
-            baseRot, feintExtendDuration, EaseOutCubic);
+            baseRot, feintExtendDuration, EaseOutCubic,
+            null,
+            SetHandExtensionProgress);
 
         // ── 단계 2: 스냅백 ─────────────────────────────
         // 팔이 빠르게 돌아오고 몸통이 뒤로 반동하며 기운다
+        SetHandExtensionPhase(CombatHandExtensionPhase.None, 0f);
         StartBodyLean(baseBodyLocalPos, baseBodyLocalPos,
             forwardLean, recoilLean, snapDuration, EaseOutCubic);
         yield return LerpPivotAndScale(
@@ -631,6 +707,8 @@ public class CombatMotionController : MonoBehaviour
         attackClashed = false;
         attackFeinted = false;
         fakeAttackFinishedCallback = null;
+        SetHandExtensionPhase(CombatHandExtensionPhase.None, 0f);
+        hasLockedOpponentContactWorldPosition = false;
         isPushing = false;
     }
 
@@ -941,6 +1019,58 @@ public class CombatMotionController : MonoBehaviour
             : transform.TransformPoint(basePivotLocalPos);
     }
 
+    Vector3 GetPalmContactWorldOffsetFromPivot()
+    {
+        Transform contactPoint = PalmContactPoint;
+        if (contactPoint == null || handPivot == null)
+            return Vector3.zero;
+
+        return contactPoint.position - handPivot.position;
+    }
+
+    Vector3 GetAttackPeakWorldPosition(
+        Vector3 basePos,
+        Vector3 pushWorldDir,
+        Vector3 palmOffsetFromPivot)
+    {
+        if (!extendAttackToOpponentContactPoint || ownerActor == null || ownerActor.OpponentController == null)
+            return basePos + pushWorldDir * pushDistance;
+
+        Transform opponentContactPoint = ownerActor.OpponentController.PalmContactPoint;
+        if (opponentContactPoint == null)
+            return basePos + pushWorldDir * pushDistance;
+
+        Vector3 opponentContactWorldPosition = ShouldUseLockedOpponentContactWorldPosition()
+            ? lockedOpponentContactWorldPosition
+            : ownerActor.OpponentController.PalmContactWorldPosition;
+
+        Vector3 targetPos = opponentContactWorldPosition
+            - palmOffsetFromPivot
+            + pushWorldDir * opponentContactReachOffset;
+        targetPos.z = basePos.z;
+        return targetPos;
+    }
+
+    void LockOpponentContactWorldPosition()
+    {
+        hasLockedOpponentContactWorldPosition = false;
+
+        if (ownerActor == null || ownerActor.OpponentController == null)
+            return;
+
+        lockedOpponentContactWorldPosition = ownerActor.OpponentController.PalmContactWorldPosition;
+        hasLockedOpponentContactWorldPosition = true;
+    }
+
+    bool ShouldUseLockedOpponentContactWorldPosition()
+    {
+        if (!hasLockedOpponentContactWorldPosition || ownerActor == null || ownerActor.OpponentController == null)
+            return false;
+
+        return ownerActor.OpponentController.IsDodgeWindowActive
+            || ownerActor.OpponentController.ResolutionCombatState == CombatState.Dodge;
+    }
+
     Vector3 GetPushWorldDirection(Vector3 localDirection)
     {
         Vector3 worldDirection = transform.TransformDirection(localDirection);
@@ -1035,6 +1165,38 @@ public class CombatMotionController : MonoBehaviour
         return attackFakeRequested;
     }
 
+    /// <summary>
+    /// 페이크 요청 또는 충돌 감지 중 하나라도 발생하면 true.
+    /// push-out LerpPivotAndScale의 중단 조건으로 사용.
+    /// </summary>
+    bool IsAttackInterrupted()
+    {
+        return attackFakeRequested || attackClashed;
+    }
+
+    void SetHandExtensionProgress(float normalized)
+    {
+        normalized = Mathf.Clamp01(normalized);
+
+        CombatHandExtensionPhase phase;
+        if (normalized <= attackStartPhaseEndNormalized)
+            phase = CombatHandExtensionPhase.Start;
+        else if (normalized <= attackMiddlePhaseEndNormalized)
+            phase = CombatHandExtensionPhase.Middle;
+        else
+            phase = CombatHandExtensionPhase.Extended;
+
+        SetHandExtensionPhase(phase, normalized);
+    }
+
+    void SetHandExtensionPhase(CombatHandExtensionPhase phase, float normalized)
+    {
+        handExtensionPhase = phase;
+        handExtensionNormalized = phase == CombatHandExtensionPhase.None
+            ? 0f
+            : Mathf.Clamp01(normalized);
+    }
+
     IEnumerator LerpBodyLean(
         Vector3 fromPos,
         Vector3 toPos,
@@ -1075,12 +1237,14 @@ public class CombatMotionController : MonoBehaviour
         Quaternion worldRotation,
         float duration,
         Func<float, float> ease,
-        Func<bool> shouldStop = null)
+        Func<bool> shouldStop = null,
+        Action<float> progressCallback = null)
     {
         if (duration <= 0f)
         {
             handPivot.SetPositionAndRotation(toPos, worldRotation);
             handVisual.localScale = toScale;
+            progressCallback?.Invoke(1f);
             yield break;
         }
 
@@ -1091,7 +1255,49 @@ public class CombatMotionController : MonoBehaviour
                 yield break;
 
             elapsed += Time.deltaTime;
-            float t = ease(Mathf.Clamp01(elapsed / duration));
+            float rawT = Mathf.Clamp01(elapsed / duration);
+            progressCallback?.Invoke(rawT);
+            float t = ease(rawT);
+            handPivot.SetPositionAndRotation(
+                Vector3.Lerp(fromPos, toPos, t),
+                worldRotation);
+            handVisual.localScale = Vector3.Lerp(fromScale, toScale, t);
+            yield return null;
+        }
+    }
+
+    IEnumerator LerpPivotAndScale(
+        Vector3 fromPos,
+        Func<Vector3> getToPos,
+        Vector3 fromScale,
+        Vector3 toScale,
+        Quaternion worldRotation,
+        float duration,
+        Func<float, float> ease,
+        Func<bool> shouldStop = null,
+        Action<float> progressCallback = null)
+    {
+        Vector3 toPos = getToPos != null ? getToPos() : fromPos;
+
+        if (duration <= 0f)
+        {
+            handPivot.SetPositionAndRotation(toPos, worldRotation);
+            handVisual.localScale = toScale;
+            progressCallback?.Invoke(1f);
+            yield break;
+        }
+
+        float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            if (shouldStop != null && shouldStop())
+                yield break;
+
+            elapsed += Time.deltaTime;
+            float rawT = Mathf.Clamp01(elapsed / duration);
+            progressCallback?.Invoke(rawT);
+            float t = ease(rawT);
+            toPos = getToPos != null ? getToPos() : toPos;
             handPivot.SetPositionAndRotation(
                 Vector3.Lerp(fromPos, toPos, t),
                 worldRotation);

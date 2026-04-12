@@ -254,6 +254,9 @@ public class BattleUiController : MonoBehaviour
             case CombatEventKind.AttackHit:
                 HandleAttackHit(eventData);
                 break;
+            case CombatEventKind.AttackMeetingWin:
+                HandleAttackMeetingWin(eventData);
+                break;
             case CombatEventKind.AttackDodged:
                 HandleAttackDodged(eventData);
                 break;
@@ -266,6 +269,30 @@ public class BattleUiController : MonoBehaviour
             case CombatEventKind.FeintFailed:
                 HandleFeintFailed(eventData);
                 break;
+        }
+    }
+
+    /// <summary>
+    /// 공격 만남에서 우세한 쪽이 받는 이벤트.
+    /// base damage * AdvantageRatio 만큼 상대에게 데미지를 적용한다.
+    /// </summary>
+    void HandleAttackMeetingWin(CombatEventData eventData)
+    {
+        if (eventData.Actor == playerController && eventData.Opponent == enemyController)
+        {
+            float baseDamage = playerStats != null
+                ? playerStats.CalculateDamageToEnemy(enemyStats)
+                : 0f;
+            ApplyEnemyDamage(baseDamage * eventData.AdvantageRatio);
+            return;
+        }
+
+        if (eventData.Actor == enemyController && eventData.Opponent == playerController)
+        {
+            float baseDamage = enemyStats != null
+                ? enemyStats.CalculateDamageToPlayer(playerStats)
+                : 0f;
+            ApplyPlayerDamage(baseDamage * eventData.AdvantageRatio);
         }
     }
 
