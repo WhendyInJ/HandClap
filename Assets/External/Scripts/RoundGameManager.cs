@@ -129,6 +129,17 @@ public class RoundGameManager : MonoBehaviour
 
     void Update()
     {
+        if (Input.GetKeyDown(KeyCode.E))
+        {
+            TryAutoAssignReferences();
+            if (State == RoundGameState.RoundActive && playerController != null)
+            {
+                Debug.Log(
+                    $"[빌드 디버그] 라운드 {CurrentRound} — Element={playerController.Element}, " +
+                    $"BodyType={playerController.BodyType}, HandSize={playerController.HandSize}");
+            }
+        }
+
         if (State != RoundGameState.RoundActive)
             return;
 
@@ -214,6 +225,9 @@ public class RoundGameManager : MonoBehaviour
 
             battleUiController.ResetEnemyHealth();
         }
+
+        TryAutoAssignReferences();
+        ApplyCurrentBuildToPlayer();
 
         SetState(RoundGameState.RoundActive);
         RoundStarted?.Invoke(CurrentRound, roundDurationSeconds);
@@ -302,6 +316,8 @@ public class RoundGameManager : MonoBehaviour
     {
         CurrentBuild = build;
         HasCurrentBuild = true;
+        TryAutoAssignReferences();
+        ApplyCurrentBuildToPlayer();
 
         if (State == RoundGameState.WaitingRerollResolution)
         {
@@ -420,6 +436,14 @@ public class RoundGameManager : MonoBehaviour
             battleUiController.EnemyDefeated -= HandleEnemyDefeated;
             battleUiController.PlayerQteEnded -= HandlePlayerQteEnded;
         }
+    }
+
+    void ApplyCurrentBuildToPlayer()
+    {
+        if (!HasCurrentBuild || playerController == null)
+            return;
+
+        playerController.ApplyBuild(CurrentBuild);
     }
 
     void TryAutoAssignReferences()

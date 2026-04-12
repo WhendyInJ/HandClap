@@ -5,6 +5,7 @@ using UnityEngine;
 public class CombatActorStats : MonoBehaviour
 {
     [Header("Slot Build")]
+    [Tooltip("Element / BodyType / HandSize. 리롤 슬롯 결과는 RoundGameManager가 ApplyBuild로 플레이어에 반영합니다.")]
     [SerializeField] private PlayerBuild build = PlayerBuild.Default;
 
     [Header("Attack")]

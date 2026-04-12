@@ -4082,7 +4082,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &1447071953
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4770,11 +4770,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 952242391672550369, guid: ebcc666ac0f408a47b3c56f4f83bc35b, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 960
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 952242391672550369, guid: ebcc666ac0f408a47b3c56f4f83bc35b, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: 1102.85
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 952242391672550369, guid: ebcc666ac0f408a47b3c56f4f83bc35b, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
@@ -4788,9 +4788,29 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 1511110467333684968, guid: ebcc666ac0f408a47b3c56f4f83bc35b, type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Target
+      value: 
+      objectReference: {fileID: 1802868413}
+    - target: {fileID: 1511110467333684968, guid: ebcc666ac0f408a47b3c56f4f83bc35b, type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_MethodName
+      value: ChooseReroll
+      objectReference: {fileID: 0}
+    - target: {fileID: 4616704040468952948, guid: ebcc666ac0f408a47b3c56f4f83bc35b, type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Target
+      value: 
+      objectReference: {fileID: 1802868413}
+    - target: {fileID: 4616704040468952948, guid: ebcc666ac0f408a47b3c56f4f83bc35b, type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_MethodName
+      value: ChooseHeal
+      objectReference: {fileID: 0}
     - target: {fileID: 6695968578523666510, guid: ebcc666ac0f408a47b3c56f4f83bc35b, type: 3}
       propertyPath: m_Name
       value: Canvas_Select
+      objectReference: {fileID: 0}
+    - target: {fileID: 6695968578523666510, guid: ebcc666ac0f408a47b3c56f4f83bc35b, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -5443,7 +5463,7 @@ MonoBehaviour:
   roundChoiceCanvas: {fileID: 998497287}
   canvas_Slot: {fileID: 1715228023}
   nextRoundCountdownText: {fileID: 1271549631}
-  roundDurationSeconds: 30
+  roundDurationSeconds: 5
   totalRounds: 3
   roundSettlingSeconds: 1.5
   rerollAutoCloseDelay: 3
