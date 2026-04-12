@@ -17,27 +17,6 @@ public class BattleUiController : MonoBehaviour
         public Image maxHpCapFill;
     }
 
-    [Serializable]
-    private class PlayerQteUiBinding
-    {
-        public GameObject root;
-        public Image failGaugeFill;
-        public Image recoverGaugeFill;
-        public Image maxHpCapFill;
-        public RectTransform track;
-        public RectTransform movingBar;
-        public RectTransform inputBox;
-        public KeyCode moveLeftKey = KeyCode.LeftArrow;
-        public KeyCode moveRightKey = KeyCode.RightArrow;
-        [Min(0f)] public float movingBarSpeed = 520f;
-        [Min(0f)] public float inputBoxSpeed = 520f;
-        [Range(0.25f, 1.5f)] public float overlapTolerance = 1f;
-        [Min(0f)] public float failDrainPerSecond = 0.35f;
-        [Min(0f)] public float recoverPerSecond = 0.65f;
-        [Min(0f)] public float failGaugeLossPerDamage = 0.2f;
-        public bool hideWhenInactive = false;
-    }
-
     [Header("Combat Targets")]
     [SerializeField] private CombatActorController playerController;
     [SerializeField] private CombatActorController enemyController;
@@ -49,20 +28,23 @@ public class BattleUiController : MonoBehaviour
     [SerializeField] private HealthUiBinding playerHealthUi = new HealthUiBinding();
     [SerializeField] private HealthUiBinding enemyHealthUi = new HealthUiBinding();
 
-    [Header("Player QTE")]
-    [SerializeField] private PlayerQteUiBinding playerQte = new PlayerQteUiBinding();
+    [Header("Player Stagger Minigames")]
+    [SerializeField] private PlayerStaggerMinigameType playerStaggerMinigameType = PlayerStaggerMinigameType.GaugeHold;
+    [SerializeField] private SlideQteMinigameController slideQteMinigame;
+    [SerializeField] private GaugeHoldMinigameController gaugeHoldMinigame;
 
     [Header("Stagger")]
     [SerializeField, Min(0f)] private float enemyStaggerDuration = 2.0f;
     [SerializeField, Min(1f)] private float staggerBonusDamageMultiplier = 1.5f;
+    [SerializeField, Min(0f)] private float failGaugeLossPerDamage = 0.2f;
     [SerializeField, Range(0f, 0.5f)] private float dodgeFailGaugePenalty = 0.1f;
 
     private float playerMaxHpNormalized = 1f;
     private float currentFailGauge;
     private float currentRecoverGauge;
     private float lastPlayerDamageTaken;
-    private float qteBarDirection = 1f;
     private bool isPlayerQteActive;
+    private PlayerStaggerMinigameController activeStaggerMinigame;
 
     public event Action<QteEndReason> PlayerQteEnded;
     public event Action EnemyDefeated;
@@ -83,6 +65,7 @@ public class BattleUiController : MonoBehaviour
     {
         TryAutoAssignControllers();
         TryAutoAssignCombatComponents();
+        TryAutoAssignMinigames();
         ApplyImmediateUiState();
     }
 
@@ -90,6 +73,7 @@ public class BattleUiController : MonoBehaviour
     {
         TryAutoAssignControllers();
         TryAutoAssignCombatComponents();
+        TryAutoAssignMinigames();
         playerMaxHpNormalized = 1f;
         currentFailGauge = 1f;
         currentRecoverGauge = 0f;
@@ -100,40 +84,29 @@ public class BattleUiController : MonoBehaviour
     {
         TryAutoAssignControllers();
         TryAutoAssignCombatComponents();
+        TryAutoAssignMinigames();
         SubscribeCombatEvents();
         SubscribeHealthEvents();
+        SubscribeMinigameEvents();
         ApplyImmediateUiState();
     }
 
     void OnDisable()
     {
+        UnsubscribeMinigameEvents();
         UnsubscribeCombatEvents();
         UnsubscribeHealthEvents();
     }
 
     void OnValidate()
     {
-        playerQte.movingBarSpeed = Mathf.Max(0f, playerQte.movingBarSpeed);
-        playerQte.inputBoxSpeed = Mathf.Max(0f, playerQte.inputBoxSpeed);
-        playerQte.failDrainPerSecond = Mathf.Max(0f, playerQte.failDrainPerSecond);
-        playerQte.recoverPerSecond = Mathf.Max(0f, playerQte.recoverPerSecond);
-        playerQte.failGaugeLossPerDamage = Mathf.Max(0f, playerQte.failGaugeLossPerDamage);
         enemyStaggerDuration = Mathf.Max(0f, enemyStaggerDuration);
         staggerBonusDamageMultiplier = Mathf.Max(1f, staggerBonusDamageMultiplier);
+        failGaugeLossPerDamage = Mathf.Max(0f, failGaugeLossPerDamage);
         dodgeFailGaugePenalty = Mathf.Clamp(dodgeFailGaugePenalty, 0f, 0.5f);
 
         if (!Application.isPlaying)
             ApplyImmediateUiState();
-    }
-
-    void Update()
-    {
-        if (!isPlayerQteActive)
-            return;
-
-        UpdateQteMovingBar();
-        UpdateQteInputBox();
-        UpdateQteGaugeState();
     }
 
     public void ResetEnemyHealth()
@@ -159,7 +132,7 @@ public class BattleUiController : MonoBehaviour
         currentFailGauge = 1f;
         currentRecoverGauge = 0f;
         UpdatePlayerHealthUi();
-        UpdateQteGaugeUi();
+        ApplyMinigameIdleStates();
     }
 
     public void RecoverPlayerFailGauge(float normalizedAmount)
@@ -169,7 +142,7 @@ public class BattleUiController : MonoBehaviour
 
         playerMaxHpNormalized = Mathf.Clamp01(playerMaxHpNormalized + normalizedAmount);
         UpdatePlayerHealthUi();
-        UpdateQteGaugeUi();
+        ApplyMinigameIdleStates();
     }
 
     public void StartPlayerQte()
@@ -187,20 +160,27 @@ public class BattleUiController : MonoBehaviour
         if (isPlayerQteActive)
             return;
 
+        PlayerStaggerMinigameController minigame = GetSelectedStaggerMinigame();
+        if (minigame == null)
+        {
+            Debug.LogWarning("Player stagger minigame is not assigned.");
+            return;
+        }
+
+        ApplyMinigameAvailability(minigame);
         isPlayerQteActive = true;
+        activeStaggerMinigame = minigame;
         lastPlayerDamageTaken = Mathf.Max(0f, incomingDamage);
         playerMaxHpNormalized = Mathf.Clamp01(
-            playerMaxHpNormalized - lastPlayerDamageTaken * playerQte.failGaugeLossPerDamage);
+            playerMaxHpNormalized - lastPlayerDamageTaken * failGaugeLossPerDamage);
         currentFailGauge = playerMaxHpNormalized;
         currentRecoverGauge = 0f;
-        qteBarDirection = 1f;
-
-        ResetQtePositions();
-        UpdateQteGaugeUi();
-        ApplyQteVisibility();
+        UpdatePlayerHealthUi();
 
         if (playerController != null)
             playerController.RequestStagger(0f, leanForward);
+
+        minigame.StartMinigame(CreateMinigameContext());
 
         if (currentFailGauge <= 0f)
             StopPlayerQte(QteEndReason.Fail);
@@ -208,21 +188,28 @@ public class BattleUiController : MonoBehaviour
 
     public void StopPlayerQte(QteEndReason endReason)
     {
+        CompletePlayerQte(endReason, stopActiveMinigame: true);
+    }
+
+    void CompletePlayerQte(QteEndReason endReason, bool stopActiveMinigame)
+    {
         if (!isPlayerQteActive)
             return;
 
+        PlayerStaggerMinigameController minigame = activeStaggerMinigame;
         isPlayerQteActive = false;
+        activeStaggerMinigame = null;
 
         if (playerController != null)
             playerController.StopStagger();
 
         if (endReason == QteEndReason.Success)
-        {
             currentFailGauge = playerMaxHpNormalized;
-            UpdateQteGaugeUi();
-        }
 
-        ApplyQteVisibility();
+        if (stopActiveMinigame && minigame != null && minigame.IsActive)
+            minigame.StopMinigame(endReason);
+
+        ApplyMinigameIdleStates();
         UpdatePlayerHealthUi();
         PlayerQteEnded?.Invoke(endReason);
     }
@@ -280,10 +267,10 @@ public class BattleUiController : MonoBehaviour
             return;
 
         playerMaxHpNormalized = Mathf.Clamp01(
-            playerMaxHpNormalized - damage * playerQte.failGaugeLossPerDamage);
+            playerMaxHpNormalized - damage * failGaugeLossPerDamage);
         currentFailGauge = playerMaxHpNormalized;
         UpdatePlayerHealthUi();
-        UpdateQteGaugeUi();
+        ApplyMinigameIdleStates();
 
         if (playerMaxHpNormalized <= 0f)
             PlayerQteEnded?.Invoke(QteEndReason.Fail);
@@ -305,7 +292,7 @@ public class BattleUiController : MonoBehaviour
     {
         if (eventData.Actor == playerController)
         {
-            StartPlayerQte(dodgeFailGaugePenalty / Mathf.Max(0.01f, playerQte.failGaugeLossPerDamage));
+            StartPlayerQte(dodgeFailGaugePenalty / Mathf.Max(0.01f, failGaugeLossPerDamage));
             return;
         }
 
@@ -467,6 +454,21 @@ public class BattleUiController : MonoBehaviour
             enemyHealth.EnsureInitialized();
     }
 
+    void TryAutoAssignMinigames()
+    {
+        if (slideQteMinigame == null)
+            slideQteMinigame = GetComponentInChildren<SlideQteMinigameController>(true);
+
+        if (slideQteMinigame == null)
+            slideQteMinigame = FindFirstObjectByType<SlideQteMinigameController>();
+
+        if (gaugeHoldMinigame == null)
+            gaugeHoldMinigame = GetComponentInChildren<GaugeHoldMinigameController>(true);
+
+        if (gaugeHoldMinigame == null)
+            gaugeHoldMinigame = FindFirstObjectByType<GaugeHoldMinigameController>();
+    }
+
     void ApplyImmediateUiState()
     {
         if (!Application.isPlaying)
@@ -479,8 +481,7 @@ public class BattleUiController : MonoBehaviour
 
         UpdatePlayerHealthUi();
         UpdateEnemyHealthUi();
-        UpdateQteGaugeUi();
-        ApplyQteVisibility();
+        ApplyMinigameIdleStates();
     }
 
     void UpdatePlayerHealthUi()
@@ -500,125 +501,80 @@ public class BattleUiController : MonoBehaviour
         enemyHealthUi.fillImage.fillAmount = EnemyHealthNormalized;
     }
 
-    void UpdateQteGaugeState()
+    void SubscribeMinigameEvents()
     {
-        bool isRecovering = IsQteSuccessState();
-
-        if (isRecovering)
-            currentRecoverGauge = Mathf.MoveTowards(currentRecoverGauge, 1f, GetEffectiveRecoverPerSecond() * Time.deltaTime);
-        else
-            currentFailGauge = Mathf.MoveTowards(currentFailGauge, 0f, GetEffectiveFailDrainPerSecond() * Time.deltaTime);
-
-        UpdateQteGaugeUi();
-
-        if (currentRecoverGauge >= 1f)
-            StopPlayerQte(QteEndReason.Success);
-        else if (currentFailGauge <= 0f)
-            StopPlayerQte(QteEndReason.Fail);
+        SubscribeMinigameEvents(slideQteMinigame);
+        SubscribeMinigameEvents(gaugeHoldMinigame);
     }
 
-    void UpdateQteGaugeUi()
+    void SubscribeMinigameEvents(PlayerStaggerMinigameController minigame)
     {
-        if (playerQte.failGaugeFill != null)
-            playerQte.failGaugeFill.fillAmount = currentFailGauge;
+        if (minigame == null)
+            return;
 
-        if (playerQte.recoverGaugeFill != null)
-            playerQte.recoverGaugeFill.fillAmount = currentRecoverGauge;
+        minigame.MinigameEnded -= HandleStaggerMinigameEnded;
+        minigame.GaugeChanged -= HandleStaggerMinigameGaugeChanged;
+        minigame.MinigameEnded += HandleStaggerMinigameEnded;
+        minigame.GaugeChanged += HandleStaggerMinigameGaugeChanged;
+    }
 
-        if (playerQte.maxHpCapFill != null)
-            playerQte.maxHpCapFill.fillAmount = playerMaxHpNormalized;
+    void UnsubscribeMinigameEvents()
+    {
+        UnsubscribeMinigameEvents(slideQteMinigame);
+        UnsubscribeMinigameEvents(gaugeHoldMinigame);
+    }
 
+    void UnsubscribeMinigameEvents(PlayerStaggerMinigameController minigame)
+    {
+        if (minigame == null)
+            return;
+
+        minigame.MinigameEnded -= HandleStaggerMinigameEnded;
+        minigame.GaugeChanged -= HandleStaggerMinigameGaugeChanged;
+    }
+
+    void HandleStaggerMinigameEnded(QteEndReason endReason)
+    {
+        CompletePlayerQte(endReason, stopActiveMinigame: false);
+    }
+
+    void HandleStaggerMinigameGaugeChanged(float failGaugeNormalized, float recoverGaugeNormalized)
+    {
+        currentFailGauge = Mathf.Clamp01(failGaugeNormalized);
+        currentRecoverGauge = Mathf.Clamp01(recoverGaugeNormalized);
         UpdatePlayerHealthUi();
     }
 
-    void ApplyQteVisibility()
+    PlayerStaggerMinigameContext CreateMinigameContext()
     {
-        if (playerQte.root == null || !Application.isPlaying)
-            return;
-
-        playerQte.root.SetActive(isPlayerQteActive || !playerQte.hideWhenInactive);
-    }
-
-    void ResetQtePositions()
-    {
-        SetAnchoredX(playerQte.movingBar, 0f);
-        SetAnchoredX(playerQte.inputBox, 0f);
-    }
-
-    void UpdateQteMovingBar()
-    {
-        if (playerQte.track == null || playerQte.movingBar == null)
-            return;
-
-        float maxX = GetMovementLimit(playerQte.movingBar);
-        float nextX = playerQte.movingBar.anchoredPosition.x + qteBarDirection * GetEffectiveMovingBarSpeed() * Time.deltaTime;
-
-        if (nextX > maxX)
+        return new PlayerStaggerMinigameContext
         {
-            nextX = maxX;
-            qteBarDirection = -1f;
-        }
-        else if (nextX < -maxX)
+            failGaugeNormalized = currentFailGauge,
+            recoverGaugeNormalized = currentRecoverGauge,
+            maxHpNormalized = playerMaxHpNormalized,
+            difficultyMultiplier = GetPlayerStaggerDifficulty(),
+        };
+    }
+
+    PlayerStaggerMinigameController GetSelectedStaggerMinigame()
+    {
+        switch (playerStaggerMinigameType)
         {
-            nextX = -maxX;
-            qteBarDirection = 1f;
+            case PlayerStaggerMinigameType.SlideQte:
+                return slideQteMinigame != null
+                    ? (PlayerStaggerMinigameController)slideQteMinigame
+                    : gaugeHoldMinigame;
+
+            case PlayerStaggerMinigameType.GaugeHold:
+                return gaugeHoldMinigame != null
+                    ? (PlayerStaggerMinigameController)gaugeHoldMinigame
+                    : slideQteMinigame;
+
+            default:
+                return gaugeHoldMinigame != null
+                    ? (PlayerStaggerMinigameController)gaugeHoldMinigame
+                    : slideQteMinigame;
         }
-
-        SetAnchoredX(playerQte.movingBar, nextX);
-    }
-
-    void UpdateQteInputBox()
-    {
-        if (playerQte.track == null || playerQte.inputBox == null)
-            return;
-
-        float input = 0f;
-        if (Input.GetKey(playerQte.moveLeftKey))
-            input -= 1f;
-        if (Input.GetKey(playerQte.moveRightKey))
-            input += 1f;
-
-        float maxX = GetMovementLimit(playerQte.inputBox);
-        float nextX = playerQte.inputBox.anchoredPosition.x + input * GetEffectiveInputBoxSpeed() * Time.deltaTime;
-        SetAnchoredX(playerQte.inputBox, Mathf.Clamp(nextX, -maxX, maxX));
-    }
-
-    bool IsQteSuccessState()
-    {
-        if (playerQte.movingBar == null || playerQte.inputBox == null)
-            return false;
-
-        float distance = Mathf.Abs(playerQte.movingBar.anchoredPosition.x - playerQte.inputBox.anchoredPosition.x);
-        float overlapRange = (GetRectWidth(playerQte.movingBar) + GetRectWidth(playerQte.inputBox))
-            * 0.5f
-            * GetEffectiveOverlapTolerance();
-
-        return distance <= overlapRange;
-    }
-
-    float GetEffectiveMovingBarSpeed()
-    {
-        return playerQte.movingBarSpeed * GetPlayerStaggerDifficulty();
-    }
-
-    float GetEffectiveInputBoxSpeed()
-    {
-        return playerQte.inputBoxSpeed / GetPlayerStaggerDifficulty();
-    }
-
-    float GetEffectiveOverlapTolerance()
-    {
-        return Mathf.Max(0.01f, playerQte.overlapTolerance / GetPlayerStaggerDifficulty());
-    }
-
-    float GetEffectiveFailDrainPerSecond()
-    {
-        return playerQte.failDrainPerSecond * GetPlayerStaggerDifficulty();
-    }
-
-    float GetEffectiveRecoverPerSecond()
-    {
-        return playerQte.recoverPerSecond / GetPlayerStaggerDifficulty();
     }
 
     float GetPlayerStaggerDifficulty()
@@ -628,28 +584,26 @@ public class BattleUiController : MonoBehaviour
             : 1f;
     }
 
-    float GetMovementLimit(RectTransform target)
+    void ApplyMinigameIdleStates()
     {
-        if (playerQte.track == null || target == null)
-            return 0f;
+        PlayerStaggerMinigameController selectedMinigame = GetSelectedStaggerMinigame();
+        ApplyMinigameAvailability(selectedMinigame);
 
-        float trackHalfWidth = GetRectWidth(playerQte.track) * 0.5f;
-        float targetHalfWidth = GetRectWidth(target) * 0.5f;
-        return Mathf.Max(0f, trackHalfWidth - targetHalfWidth);
+        float failGauge = isPlayerQteActive ? currentFailGauge : playerMaxHpNormalized;
+
+        if (slideQteMinigame != null)
+            slideQteMinigame.ApplyIdleState(failGauge, currentRecoverGauge, playerMaxHpNormalized);
+
+        if (gaugeHoldMinigame != null)
+            gaugeHoldMinigame.ApplyIdleState(failGauge, currentRecoverGauge, playerMaxHpNormalized);
     }
 
-    static float GetRectWidth(RectTransform rectTransform)
+    void ApplyMinigameAvailability(PlayerStaggerMinigameController selectedMinigame)
     {
-        return rectTransform == null ? 0f : rectTransform.rect.width;
-    }
+        if (slideQteMinigame != null)
+            slideQteMinigame.SetSuppressed(slideQteMinigame != selectedMinigame);
 
-    static void SetAnchoredX(RectTransform rectTransform, float value)
-    {
-        if (rectTransform == null)
-            return;
-
-        Vector2 anchoredPosition = rectTransform.anchoredPosition;
-        anchoredPosition.x = value;
-        rectTransform.anchoredPosition = anchoredPosition;
+        if (gaugeHoldMinigame != null)
+            gaugeHoldMinigame.SetSuppressed(gaugeHoldMinigame != selectedMinigame);
     }
 }

@@ -88,6 +88,15 @@ public class GaugeUI : MonoBehaviour
 
     public float NormalizedNeedle => needleT;
 
+    public float GetAngleForNormalized(float normalized)
+    {
+        normalized = Mathf.Clamp01(normalized);
+
+        return invertSweep
+            ? Mathf.Lerp(angleAtFull, angleAtRest, normalized)
+            : Mathf.Lerp(angleAtRest, angleAtFull, normalized);
+    }
+
     public void SetNeedleImmediate(float normalized)
     {
         needleT = Mathf.Clamp01(normalized);
@@ -100,9 +109,7 @@ public class GaugeUI : MonoBehaviour
         if (needle == null)
             return;
 
-        float z = invertSweep
-            ? Mathf.Lerp(angleAtFull, angleAtRest, needleT)
-            : Mathf.Lerp(angleAtRest, angleAtFull, needleT);
+        float z = GetAngleForNormalized(needleT);
         needle.localRotation = Quaternion.Euler(0f, 0f, z);
     }
 }
