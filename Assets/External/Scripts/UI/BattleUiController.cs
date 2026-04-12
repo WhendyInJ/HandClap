@@ -147,15 +147,23 @@ public class BattleUiController : MonoBehaviour
 
     public void StartPlayerQte()
     {
-        StartPlayerQte(0f, leanForward: false);
+        StartPlayerQte(0f, leanForward: false, PlayerStaggerGaugeStartLayout.Default);
     }
 
     public void StartPlayerQte(float incomingDamage)
     {
-        StartPlayerQte(incomingDamage, leanForward: false);
+        StartPlayerQte(incomingDamage, leanForward: false, PlayerStaggerGaugeStartLayout.Default);
     }
 
     public void StartPlayerQte(float incomingDamage, bool leanForward)
+    {
+        StartPlayerQte(incomingDamage, leanForward, PlayerStaggerGaugeStartLayout.Default);
+    }
+
+    public void StartPlayerQte(
+        float incomingDamage,
+        bool leanForward,
+        PlayerStaggerGaugeStartLayout gaugeStartLayout)
     {
         if (isPlayerQteActive)
             return;
@@ -180,7 +188,7 @@ public class BattleUiController : MonoBehaviour
         if (playerController != null)
             playerController.RequestStagger(0f, leanForward);
 
-        minigame.StartMinigame(CreateMinigameContext());
+        minigame.StartMinigame(CreateMinigameContext(gaugeStartLayout));
 
         if (currentFailGauge <= 0f)
             StopPlayerQte(QteEndReason.Fail);
@@ -280,7 +288,10 @@ public class BattleUiController : MonoBehaviour
     {
         if (eventData.Actor == playerController)
         {
-            StartPlayerQte(0f, leanForward: true);
+            StartPlayerQte(
+                0f,
+                leanForward: true,
+                PlayerStaggerGaugeStartLayout.TargetLeftNeedleRight);
             return;
         }
 
@@ -292,7 +303,10 @@ public class BattleUiController : MonoBehaviour
     {
         if (eventData.Actor == playerController)
         {
-            StartPlayerQte(dodgeFailGaugePenalty / Mathf.Max(0.01f, failGaugeLossPerDamage));
+            StartPlayerQte(
+                dodgeFailGaugePenalty / Mathf.Max(0.01f, failGaugeLossPerDamage),
+                leanForward: false,
+                PlayerStaggerGaugeStartLayout.TargetRightNeedleLeft);
             return;
         }
 
@@ -308,7 +322,10 @@ public class BattleUiController : MonoBehaviour
                 ? enemyStats.CalculateDamageToPlayer(playerStats)
                 : 0f;
 
-            StartPlayerQte(finalDamage);
+            StartPlayerQte(
+                finalDamage,
+                leanForward: false,
+                PlayerStaggerGaugeStartLayout.TargetRightNeedleLeft);
             return;
         }
 
@@ -545,7 +562,7 @@ public class BattleUiController : MonoBehaviour
         UpdatePlayerHealthUi();
     }
 
-    PlayerStaggerMinigameContext CreateMinigameContext()
+    PlayerStaggerMinigameContext CreateMinigameContext(PlayerStaggerGaugeStartLayout gaugeStartLayout)
     {
         return new PlayerStaggerMinigameContext
         {
@@ -553,6 +570,7 @@ public class BattleUiController : MonoBehaviour
             recoverGaugeNormalized = currentRecoverGauge,
             maxHpNormalized = playerMaxHpNormalized,
             difficultyMultiplier = GetPlayerStaggerDifficulty(),
+            gaugeStartLayout = gaugeStartLayout,
         };
     }
 
