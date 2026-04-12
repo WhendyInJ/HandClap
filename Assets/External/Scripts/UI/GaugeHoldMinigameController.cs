@@ -11,6 +11,13 @@ public enum GaugeTargetSpawnMode
     AlternatingSides,
 }
 
+enum GaugeVisualSide
+{
+    None,
+    Left,
+    Right,
+}
+
 [Serializable]
 public struct GaugeTargetRange
 {
@@ -50,6 +57,8 @@ public class GaugeHoldMinigameController : PlayerStaggerMinigameController
 
     [Header("Target View")]
     [Min(0f)] [SerializeField] private float targetRadius = 120f;
+    [Tooltip("타겟 배치에 적용할 반지름 오프셋입니다. 음수는 안쪽, 양수는 바깥쪽으로 이동합니다.")]
+    [SerializeField] private float targetRadiusOffset = 0f;
     [Min(1f)] [SerializeField] private float minTargetViewWidth = 24f;
     [Tooltip("Needle 이미지가 Z 회전 0도일 때 가리키는 UI 로컬 방향입니다.")]
     [SerializeField] private Vector2 directionAtZeroDegrees = Vector2.up;
@@ -128,10 +137,10 @@ public class GaugeHoldMinigameController : PlayerStaggerMinigameController
         difficultyMultiplier = Mathf.Max(0.01f, context.difficultyMultiplier);
         isActive = true;
 
-        if (resetNeedleOnStart && gauge != null)
-            gauge.SetNeedleImmediate(initialNeedleNormalized);
+        if (gauge != null && (resetNeedleOnStart || context.gaugeStartLayout != PlayerStaggerGaugeStartLayout.Default))
+            gauge.SetNeedleImmediate(GetInitialNeedleNormalized(context.gaugeStartLayout));
 
-        SpawnTarget(CreateTargetRange());
+        SpawnTarget(CreateTargetRange(context.gaugeStartLayout));
         UpdateUi();
         ApplyVisibility();
         RaiseGaugeChanged(currentFailGauge, currentRecoverGauge);
@@ -192,11 +201,11 @@ public class GaugeHoldMinigameController : PlayerStaggerMinigameController
             StopMinigame(QteEndReason.Fail);
     }
 
-    GaugeTargetRange CreateTargetRange()
+    GaugeTargetRange CreateTargetRange(PlayerStaggerGaugeStartLayout gaugeStartLayout)
     {
         float width = GetEffectiveTargetWidth();
         float halfWidth = width * 0.5f;
-        float center = GetTargetCenter(halfWidth);
+        float center = GetTargetCenter(halfWidth, GetTargetSideOverride(gaugeStartLayout));
 
         return new GaugeTargetRange
         {
@@ -205,10 +214,13 @@ public class GaugeHoldMinigameController : PlayerStaggerMinigameController
         };
     }
 
-    float GetTargetCenter(float halfWidth)
+    float GetTargetCenter(float halfWidth, GaugeVisualSide sideOverride)
     {
         float minCenter = halfWidth;
         float maxCenter = 1f - halfWidth;
+
+        if (sideOverride != GaugeVisualSide.None)
+            return GetRandomCenterOnVisualSide(halfWidth, sideOverride);
 
         switch (spawnMode)
         {
@@ -216,20 +228,97 @@ public class GaugeHoldMinigameController : PlayerStaggerMinigameController
                 return Mathf.Clamp(fixedTargetCenter, minCenter, maxCenter);
 
             case GaugeTargetSpawnMode.LeftOnly:
-                return UnityEngine.Random.Range(minCenter, Mathf.Max(minCenter, 0.35f));
+                return GetRandomCenterOnVisualSide(halfWidth, GaugeVisualSide.Left);
 
             case GaugeTargetSpawnMode.RightOnly:
-                return UnityEngine.Random.Range(Mathf.Min(maxCenter, 0.65f), maxCenter);
+                return GetRandomCenterOnVisualSide(halfWidth, GaugeVisualSide.Right);
 
             case GaugeTargetSpawnMode.AlternatingSides:
                 nextTargetOnRight = !nextTargetOnRight;
                 return nextTargetOnRight
-                    ? UnityEngine.Random.Range(Mathf.Min(maxCenter, 0.65f), maxCenter)
-                    : UnityEngine.Random.Range(minCenter, Mathf.Max(minCenter, 0.35f));
+                    ? GetRandomCenterOnVisualSide(halfWidth, GaugeVisualSide.Right)
+                    : GetRandomCenterOnVisualSide(halfWidth, GaugeVisualSide.Left);
 
             default:
                 return UnityEngine.Random.Range(minCenter, maxCenter);
         }
+    }
+
+    float GetRandomCenterOnVisualSide(float halfWidth, GaugeVisualSide side)
+    {
+        bool lowNormalizedSideIsLeft = IsLowNormalizedSideVisualLeft(halfWidth);
+        bool useLowNormalizedSide = side == GaugeVisualSide.Left
+            ? lowNormalizedSideIsLeft
+            : !lowNormalizedSideIsLeft;
+
+        return GetRandomCenterOnNormalizedSide(halfWidth, useLowNormalizedSide);
+    }
+
+    float GetRandomCenterOnNormalizedSide(float halfWidth, bool useLowNormalizedSide)
+    {
+        float minCenter = halfWidth;
+        float maxCenter = 1f - halfWidth;
+
+        if (useLowNormalizedSide)
+            return UnityEngine.Random.Range(minCenter, Mathf.Max(minCenter, Mathf.Min(maxCenter, 0.35f)));
+
+        return UnityEngine.Random.Range(Mathf.Min(maxCenter, Mathf.Max(minCenter, 0.65f)), maxCenter);
+    }
+
+    bool IsLowNormalizedSideVisualLeft(float halfWidth)
+    {
+        if (gauge == null)
+            return true;
+
+        float lowNormalized = halfWidth;
+        float highNormalized = 1f - halfWidth;
+        float lowX = GetLocalDirectionForNormalized(lowNormalized).x;
+        float highX = GetLocalDirectionForNormalized(highNormalized).x;
+        return lowX <= highX;
+    }
+
+    GaugeVisualSide GetTargetSideOverride(PlayerStaggerGaugeStartLayout gaugeStartLayout)
+    {
+        switch (gaugeStartLayout)
+        {
+            case PlayerStaggerGaugeStartLayout.TargetLeftNeedleRight:
+                return GaugeVisualSide.Left;
+
+            case PlayerStaggerGaugeStartLayout.TargetRightNeedleLeft:
+                return GaugeVisualSide.Right;
+
+            default:
+                return GaugeVisualSide.None;
+        }
+    }
+
+    float GetInitialNeedleNormalized(PlayerStaggerGaugeStartLayout gaugeStartLayout)
+    {
+        switch (gaugeStartLayout)
+        {
+            case PlayerStaggerGaugeStartLayout.TargetLeftNeedleRight:
+                return GetNeedleNormalizedForVisualSide(GaugeVisualSide.Right);
+
+            case PlayerStaggerGaugeStartLayout.TargetRightNeedleLeft:
+                return GetNeedleNormalizedForVisualSide(GaugeVisualSide.Left);
+
+            default:
+                return initialNeedleNormalized;
+        }
+    }
+
+    float GetNeedleNormalizedForVisualSide(GaugeVisualSide side)
+    {
+        if (side == GaugeVisualSide.None || gauge == null)
+            return initialNeedleNormalized;
+
+        float zeroX = GetLocalDirectionForNormalized(0f).x;
+        float oneX = GetLocalDirectionForNormalized(1f).x;
+        bool zeroIsLeft = zeroX <= oneX;
+
+        return side == GaugeVisualSide.Left
+            ? (zeroIsLeft ? 0f : 1f)
+            : (zeroIsLeft ? 1f : 0f);
     }
 
     void SpawnTarget(GaugeTargetRange range)
@@ -243,27 +332,28 @@ public class GaugeHoldMinigameController : PlayerStaggerMinigameController
             return;
 
         currentTargetView = Instantiate(targetPrefab, targetRoot);
-        ConfigureTargetRect(currentTargetView);
+        ConfigureTargetRect(currentTargetView, targetRoot.pivot);
 
         float centerAngle = gauge.GetAngleForNormalized(range.Center);
-        currentTargetView.anchoredPosition = AngleToPosition(centerAngle, targetRadius);
+        float targetViewRadius = GetTargetViewRadius();
+        currentTargetView.anchoredPosition = AngleToPosition(centerAngle, targetViewRadius);
         currentTargetView.localRotation = Quaternion.Euler(0f, 0f, centerAngle);
 
         float minAngle = gauge.GetAngleForNormalized(range.min);
         float maxAngle = gauge.GetAngleForNormalized(range.max);
-        float arcWidth = Mathf.Abs(Mathf.DeltaAngle(minAngle, maxAngle)) * Mathf.Deg2Rad * targetRadius;
+        float arcWidth = Mathf.Abs(Mathf.DeltaAngle(minAngle, maxAngle)) * Mathf.Deg2Rad * targetViewRadius;
         Vector2 size = currentTargetView.sizeDelta;
         size.x = Mathf.Max(minTargetViewWidth, arcWidth);
         currentTargetView.sizeDelta = size;
     }
 
-    static void ConfigureTargetRect(RectTransform target)
+    static void ConfigureTargetRect(RectTransform target, Vector2 parentPivot)
     {
         if (target == null)
             return;
 
-        target.anchorMin = new Vector2(0.5f, 0.5f);
-        target.anchorMax = new Vector2(0.5f, 0.5f);
+        target.anchorMin = parentPivot;
+        target.anchorMax = parentPivot;
         target.pivot = new Vector2(0.5f, 0.5f);
         target.localScale = Vector3.one;
         target.anchoredPosition3D = Vector3.zero;
@@ -302,6 +392,11 @@ public class GaugeHoldMinigameController : PlayerStaggerMinigameController
     float GetEffectiveRecoverPerSecond()
     {
         return recoverPerSecond / difficultyMultiplier;
+    }
+
+    float GetTargetViewRadius()
+    {
+        return Mathf.Max(0f, targetRadius + targetRadiusOffset);
     }
 
     void OnDrawGizmos()
@@ -381,16 +476,22 @@ public class GaugeHoldMinigameController : PlayerStaggerMinigameController
         return GetWorldPointOnGauge(gauge.GetAngleForNormalized(Mathf.Clamp01(normalized)));
     }
 
+    Vector2 GetLocalDirectionForNormalized(float normalized)
+    {
+        float angle = gauge != null ? gauge.GetAngleForNormalized(Mathf.Clamp01(normalized)) : 0f;
+        return AngleToPosition(angle, 1f);
+    }
+
     Vector3 GetWorldPointOnGauge(float angle)
     {
-        Vector2 localPoint = AngleToPosition(angle, targetRadius);
+        Vector2 localPoint = AngleToPosition(angle, GetTargetViewRadius());
         return targetRoot.TransformPoint(localPoint);
     }
 
     float GetWorldDebugRadius(float radiusScale)
     {
         Vector3 center = targetRoot.position;
-        Vector3 edge = targetRoot.TransformPoint(AngleToPosition(0f, targetRadius));
+        Vector3 edge = targetRoot.TransformPoint(AngleToPosition(0f, GetTargetViewRadius()));
         return Mathf.Max(0.01f, Vector3.Distance(center, edge) * radiusScale);
     }
 

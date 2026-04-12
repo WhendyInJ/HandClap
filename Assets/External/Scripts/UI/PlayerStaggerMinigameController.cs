@@ -7,12 +7,20 @@ public enum PlayerStaggerMinigameType
     GaugeHold,
 }
 
+public enum PlayerStaggerGaugeStartLayout
+{
+    Default,
+    TargetLeftNeedleRight,
+    TargetRightNeedleLeft,
+}
+
 public struct PlayerStaggerMinigameContext
 {
     public float failGaugeNormalized;
     public float recoverGaugeNormalized;
     public float maxHpNormalized;
     public float difficultyMultiplier;
+    public PlayerStaggerGaugeStartLayout gaugeStartLayout;
 }
 
 public abstract class PlayerStaggerMinigameController : MonoBehaviour

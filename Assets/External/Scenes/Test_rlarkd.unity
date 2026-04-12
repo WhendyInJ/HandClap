@@ -3756,10 +3756,6 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
-    - target: {fileID: 3956896541116349222, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
-      propertyPath: m_SortingOrder
-      value: 8
-      objectReference: {fileID: 0}
     - target: {fileID: 5242545607161259126, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: m_LocalPosition.x
       value: 2.92
@@ -3800,37 +3796,9 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 5345291563831222077, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
-      propertyPath: m_SortingOrder
-      value: 8
-      objectReference: {fileID: 0}
-    - target: {fileID: 5776537366310510248, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
-      propertyPath: m_SortingOrder
-      value: 9
-      objectReference: {fileID: 0}
-    - target: {fileID: 6129149554411382432, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
-      propertyPath: m_SortingOrder
-      value: 8
-      objectReference: {fileID: 0}
-    - target: {fileID: 6201902760024279825, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
-      propertyPath: m_SortingOrder
-      value: 9
-      objectReference: {fileID: 0}
     - target: {fileID: 6543493760203558320, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: m_Name
       value: WaterBoss
-      objectReference: {fileID: 0}
-    - target: {fileID: 7131371699741828297, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
-      propertyPath: m_SortingOrder
-      value: 8
-      objectReference: {fileID: 0}
-    - target: {fileID: 7795075782532130312, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
-      propertyPath: m_SortingOrder
-      value: 7
-      objectReference: {fileID: 0}
-    - target: {fileID: 7979646300088680339, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
-      propertyPath: m_SortingOrder
-      value: 8
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -5006,33 +4974,9 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
-    - target: {fileID: 296307396594452351, guid: 6103ca1899a30e24a8e01a1535ae3f82, type: 3}
-      propertyPath: m_SortingOrder
-      value: 8
-      objectReference: {fileID: 0}
-    - target: {fileID: 928737469076139039, guid: 6103ca1899a30e24a8e01a1535ae3f82, type: 3}
-      propertyPath: m_SortingOrder
-      value: 9
-      objectReference: {fileID: 0}
-    - target: {fileID: 1164373237424571171, guid: 6103ca1899a30e24a8e01a1535ae3f82, type: 3}
-      propertyPath: m_SortingOrder
-      value: 8
-      objectReference: {fileID: 0}
-    - target: {fileID: 1407832245652613428, guid: 6103ca1899a30e24a8e01a1535ae3f82, type: 3}
-      propertyPath: m_SortingOrder
-      value: 8
-      objectReference: {fileID: 0}
-    - target: {fileID: 1671188245446790782, guid: 6103ca1899a30e24a8e01a1535ae3f82, type: 3}
-      propertyPath: m_SortingOrder
-      value: 8
-      objectReference: {fileID: 0}
     - target: {fileID: 2123495892663902419, guid: 6103ca1899a30e24a8e01a1535ae3f82, type: 3}
       propertyPath: m_Name
       value: PlayerC
-      objectReference: {fileID: 0}
-    - target: {fileID: 5407426417930765686, guid: 6103ca1899a30e24a8e01a1535ae3f82, type: 3}
-      propertyPath: m_SortingOrder
-      value: 9
       objectReference: {fileID: 0}
     - target: {fileID: 5796210247299054692, guid: 6103ca1899a30e24a8e01a1535ae3f82, type: 3}
       propertyPath: m_LocalPosition.x
@@ -5073,14 +5017,6 @@ PrefabInstance:
     - target: {fileID: 5796210247299054692, guid: 6103ca1899a30e24a8e01a1535ae3f82, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 5870427877079817674, guid: 6103ca1899a30e24a8e01a1535ae3f82, type: 3}
-      propertyPath: m_SortingOrder
-      value: 7
-      objectReference: {fileID: 0}
-    - target: {fileID: 6746715694133755568, guid: 6103ca1899a30e24a8e01a1535ae3f82, type: 3}
-      propertyPath: m_SortingOrder
-      value: 8
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
