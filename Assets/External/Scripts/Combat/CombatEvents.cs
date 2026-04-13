@@ -50,7 +50,9 @@ public readonly struct CombatEventData
         CombatState actorState,
         CombatState opponentState,
         string summary,
-        float advantageRatio = 0f)
+        float advantageRatio = 0f,
+        float playerReachRatio = 0f,
+        float enemyReachRatio = 0f)
     {
         Kind = kind;
         Actor = actor;
@@ -59,6 +61,8 @@ public readonly struct CombatEventData
         OpponentState = opponentState;
         Summary = summary;
         AdvantageRatio = Mathf.Clamp01(advantageRatio);
+        PlayerReachRatio = Mathf.Clamp01(playerReachRatio);
+        EnemyReachRatio = Mathf.Clamp01(enemyReachRatio);
     }
 
     public CombatEventKind Kind { get; }
@@ -73,4 +77,6 @@ public readonly struct CombatEventData
     /// AttackMeetingWin / AttackMeetingLoss 이외에는 0.
     /// </summary>
     public float AdvantageRatio { get; }
+    public float PlayerReachRatio { get; }
+    public float EnemyReachRatio { get; }
 }

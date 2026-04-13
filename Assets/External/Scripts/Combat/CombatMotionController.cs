@@ -363,6 +363,27 @@ public class CombatMotionController : MonoBehaviour
         attackClashed = true;
     }
 
+    public void MarkAttackClashed(Vector3 contactWorldPosition)
+    {
+        Initialize();
+
+        if (bodyLeanRoutine != null)
+        {
+            StopCoroutine(bodyLeanRoutine);
+            bodyLeanRoutine = null;
+        }
+
+        if (handPivot != null)
+        {
+            Vector3 palmOffsetFromPivot = PalmContactWorldPosition - handPivot.position;
+            Vector3 targetPivotPosition = contactWorldPosition - palmOffsetFromPivot;
+            targetPivotPosition.z = handPivot.position.z;
+            handPivot.SetPositionAndRotation(targetPivotPosition, handPivot.rotation);
+        }
+
+        MarkAttackClashed();
+    }
+
     void Initialize()
     {
         if (initialized)

@@ -90,6 +90,8 @@ public class EnemyController : MonoBehaviour
     [SerializeField] private Transform attackStartEffectSpawnPoint;
     [SerializeField] private GameObject fakeAttackStartEffectPrefab;
     [SerializeField] private Transform fakeAttackStartEffectSpawnPoint;
+    [SerializeField] private GameObject attackMeetingDisadvantageEffectPrefab;
+    [SerializeField] private Transform attackMeetingDisadvantageEffectSpawnPoint;
     [SerializeField] private Transform actionEffectParentOverride;
     [SerializeField, Min(0f)] private float actionEffectRandomCircleRadius = 0.15f;
     [SerializeField] private bool useActionEffectSpawnPointRotation = true;
@@ -111,6 +113,7 @@ public class EnemyController : MonoBehaviour
     private bool playerWasAttacking;
     private bool wasRoundCombatActive;
     private bool isAttackTelegraphActive;
+    private GameObject activeAttackStartEffectInstance;
 
     // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -169,13 +172,17 @@ public class EnemyController : MonoBehaviour
 
     void OnEnable()
     {
+        EnsureActorController(true);
         TryAutoAssignAiPauseSources();
+        SubscribeCombatEvents();
         ResetActionCooldown();
         wasRoundCombatActive = actorController != null && actorController.RoundCombatActive;
     }
 
     void OnDisable()
     {
+        UnsubscribeCombatEvents();
+
         if (aiStateRoutine != null)
         {
             StopCoroutine(aiStateRoutine);
@@ -231,7 +238,12 @@ public class EnemyController : MonoBehaviour
         TickActionCooldown();
 
         if (currentAiState == EnemyAIState.Idle)
+        {
             UpdateIdleState();
+            return;
+        }
+
+        playerWasAttacking = IsPlayerAttacking();
     }
 
     // ── Idle State ─────────────────────────────────────────────────────────────
@@ -463,8 +475,31 @@ public class EnemyController : MonoBehaviour
     {
         GameObject prefab = isFakeAttack ? fakeAttackStartEffectPrefab : attackStartEffectPrefab;
         Transform spawnPoint = isFakeAttack ? fakeAttackStartEffectSpawnPoint : attackStartEffectSpawnPoint;
+        GameObject instance = SpawnActionEffect(prefab, spawnPoint);
+
+        if (!isFakeAttack)
+            activeAttackStartEffectInstance = instance;
+    }
+
+    void SpawnAttackMeetingDisadvantageEffect()
+    {
+        if (activeAttackStartEffectInstance != null)
+        {
+            Destroy(activeAttackStartEffectInstance);
+            activeAttackStartEffectInstance = null;
+        }
+
+        Transform spawnPoint = attackMeetingDisadvantageEffectSpawnPoint != null
+            ? attackMeetingDisadvantageEffectSpawnPoint
+            : attackStartEffectSpawnPoint;
+
+        SpawnActionEffect(attackMeetingDisadvantageEffectPrefab, spawnPoint);
+    }
+
+    GameObject SpawnActionEffect(GameObject prefab, Transform spawnPoint)
+    {
         if (prefab == null || spawnPoint == null)
-            return;
+            return null;
 
         Vector2 randomOffset = Random.insideUnitCircle * actionEffectRandomCircleRadius;
         Vector3 spawnPosition = spawnPoint.position + new Vector3(randomOffset.x, randomOffset.y, 0f);
@@ -477,6 +512,8 @@ public class EnemyController : MonoBehaviour
 
         if (actionEffectDestroyAfterSeconds > 0f)
             Destroy(instance, actionEffectDestroyAfterSeconds);
+
+        return instance;
     }
 
     void PlayActionStartEffectAnimation(GameObject instance)
@@ -528,7 +565,33 @@ public class EnemyController : MonoBehaviour
 
     void ReturnToIdle()
     {
+        playerWasAttacking = IsPlayerAttacking();
         SetState(EnemyAIState.Idle);
+    }
+
+    void HandleCombatEvent(CombatEventData eventData)
+    {
+        if (eventData.Kind != CombatEventKind.AttackMeetingLoss || eventData.Actor != actorController)
+            return;
+
+        SpawnAttackMeetingDisadvantageEffect();
+    }
+
+    void SubscribeCombatEvents()
+    {
+        if (actorController == null)
+            return;
+
+        actorController.CombatEventRaised -= HandleCombatEvent;
+        actorController.CombatEventRaised += HandleCombatEvent;
+    }
+
+    void UnsubscribeCombatEvents()
+    {
+        if (actorController == null)
+            return;
+
+        actorController.CombatEventRaised -= HandleCombatEvent;
     }
 
     void HandleCombatResumed()
