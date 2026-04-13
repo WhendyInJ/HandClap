@@ -9002,6 +9002,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: GameOverPanel
       objectReference: {fileID: 0}
+    - target: {fileID: 7308105543759429251, guid: f26c55696bcd1ed40abae79b41a9cfe8, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -10662,6 +10666,37 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1649056842}
   m_CullTransparentMesh: 1
+--- !u!1 &1701387405
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1701387406}
+  m_Layer: 0
+  m_Name: GameObject
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1701387406
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1701387405}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1715228021
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -11160,6 +11195,20 @@ MonoBehaviour:
   suppressCombatResolutionDuringCoachTutorial: 1
   coachTutorialUseUnscaledTime: 0
   appendSecondsToCoachText: 1
+  playStartPresentation: 1
+  readyPrefab: {fileID: 350306449094574176, guid: 3cdb9c9c8d00f2d48aa31d1955597581, type: 3}
+  startPrefab: {fileID: 7460997831658612606, guid: df5def2740156dd4a9b983d07a7eeb0d, type: 3}
+  startPresentationParent: {fileID: 0}
+  startPresentationSpawnPoint: {fileID: 1701387406}
+  readyDisplayDuration: 0.75
+  startDisplayDuration: 0.75
+  readyStartGapDuration: 0.1
+  presentationPopInDuration: 0.14
+  presentationFadeOutDuration: 0.18
+  presentationStartScaleMultiplier: 0.8
+  presentationPeakScaleMultiplier: 1.12
+  pauseTimeScaleDuringStartPresentation: 1
+  destroyPresentationPrefabAfterDisplay: 1
 --- !u!4 &1802868414
 Transform:
   m_ObjectHideFlags: 0
@@ -12442,3 +12491,4 @@ SceneRoots:
   - {fileID: 1041613767}
   - {fileID: 344267808}
   - {fileID: 1571021588}
+  - {fileID: 1701387406}
