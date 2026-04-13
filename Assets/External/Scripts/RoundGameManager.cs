@@ -304,6 +304,16 @@ public class RoundGameManager : MonoBehaviour
         slotController.SetKeyboardInputEnabled(true);
     }
 
+    public void SkipCoachTutorial()
+    {
+        bool tutorialIsRunning = tutorialCoachRoutine != null || State == RoundGameState.TutorialCoach;
+        if (!tutorialIsRunning)
+            return;
+
+        StopTutorialCoachRoutine();
+        StartRound(1);
+    }
+
     public void StartRound(int roundNumber)
     {
         if (roundNumber <= 0)
