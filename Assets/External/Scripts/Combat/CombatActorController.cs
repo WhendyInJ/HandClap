@@ -797,7 +797,7 @@ public class CombatActorController : MonoBehaviour
         const string summary = "Fake no effect";
         LogCombatOutcome(CombatState.Attack, opponentState, summary);
         RaiseCombatEvent(
-            CombatEventKind.FeintFailed,
+            CombatEventKind.FeintNoEffect,
             opponentController,
             CombatState.Attack,
             opponentState,

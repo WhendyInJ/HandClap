@@ -970,8 +970,12 @@ public class RoundGameManager : MonoBehaviour
 
     void HandleEnemyCombatEventRaised(CombatEventData eventData)
     {
-        if (State != RoundGameState.TutorialCoach || eventData.Kind != CombatEventKind.FeintFailed)
+        if (State != RoundGameState.TutorialCoach
+            || (eventData.Kind != CombatEventKind.FeintNoEffect
+                && eventData.Kind != CombatEventKind.FeintFailed))
+        {
             return;
+        }
 
         if (eventData.Actor != enemyController || eventData.Opponent != playerController)
             return;

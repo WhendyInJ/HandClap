@@ -3098,6 +3098,19 @@ MonoBehaviour:
   requiredActiveSceneName: Round1
   loadDelay: 0.5
   useUnscaledDelay: 1
+  playWinPresentation: 1
+  winPrefab: {fileID: 5853768939279057018, guid: 29a652b4ceaf3924085210cbfed116fe, type: 3}
+  winPresentationParent: {fileID: 231226726}
+  winPresentationSpawnPoint: {fileID: 231226726}
+  winDisplayDuration: 0.8
+  winPopInDuration: 0.14
+  winFadeOutDuration: 0.18
+  winStartScaleMultiplier: 0.8
+  winPeakScaleMultiplier: 1.12
+  destroyWinPrefabAfterDisplay: 1
+  useFadeTransition: 1
+  sceneFadeOutDuration: 0.6
+  sceneFadeInDuration: 0.6
 --- !u!4 &843566112
 Transform:
   m_ObjectHideFlags: 0
@@ -7204,11 +7217,24 @@ MonoBehaviour:
   runCoachTutorialBeforeFirstRound: 0
   coachTutorialText: {fileID: 0}
   coachTutorialRoot: {fileID: 0}
+  coachTutorialProgressRoot: {fileID: 0}
+  coachTutorialProgressImages: []
+  coachTutorialProgressFillDuration: 0.18
+  coachTutorialProgressPunchScale: 1.12
   coachTutorialSteps: []
   coachTutorialAllowCombat: 1
   suppressCombatResolutionDuringCoachTutorial: 1
   coachTutorialUseUnscaledTime: 0
   appendSecondsToCoachText: 1
+  coachTutorialDialoguePageDelay: 2
+  coachTutorialDialogueTypeCharacterDelay: 0.03
+  coachTutorialStepTransitionDelay: 2
+  coachTutorialSkipHoldKey: 103
+  coachTutorialSkipHoldSeconds: 2
+  coachTutorialSkipHoldFillImage: {fileID: 0}
+  coachTutorialCompleteSceneName: 
+  coachTutorialSceneFadeOutSeconds: 1.2
+  coachTutorialSceneFadeInSeconds: 1.2
   playStartPresentation: 1
   readyPrefab: {fileID: 350306449094574176, guid: 3cdb9c9c8d00f2d48aa31d1955597581, type: 3}
   startPrefab: {fileID: 7460997831658612606, guid: df5def2740156dd4a9b983d07a7eeb0d, type: 3}
@@ -8340,11 +8366,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 116113316942368573, guid: 3591442d994429b4ab83f7924b699f58, type: 3}
       propertyPath: m_Color.g
-      value: 1
+      value: 0.68466157
       objectReference: {fileID: 0}
     - target: {fileID: 116113316942368573, guid: 3591442d994429b4ab83f7924b699f58, type: 3}
       propertyPath: m_Color.r
-      value: 1
+      value: 0.2971698
       objectReference: {fileID: 0}
     - target: {fileID: 523189126276775981, guid: 3591442d994429b4ab83f7924b699f58, type: 3}
       propertyPath: m_Pivot.x

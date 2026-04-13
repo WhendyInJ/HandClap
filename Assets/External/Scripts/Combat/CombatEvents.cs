@@ -19,6 +19,7 @@ public enum CombatEventKind
 
     AttackDodged,
     AttackFeinted,
+    FeintNoEffect,
     DodgeSucceeded,
     DodgeFailed,
 

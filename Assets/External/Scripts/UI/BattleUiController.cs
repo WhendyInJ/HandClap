@@ -439,6 +439,9 @@ public class BattleUiController : MonoBehaviour
 
     void HandleFeintFailed(CombatEventData eventData)
     {
+        if (eventData.OpponentState == CombatState.Neutral)
+            return;
+
         if (eventData.Actor == playerController)
         {
             StartPlayerQte(
