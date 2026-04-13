@@ -145,6 +145,15 @@ public class CombatActorController : MonoBehaviour
         return QueueDecision(CombatState.Dodge);
     }
 
+    public bool SuppressCurrentDodgeFailure()
+    {
+        if (!IsDodgeCommitted || dodgeSucceeded)
+            return false;
+
+        dodgeSucceeded = true;
+        return true;
+    }
+
     public bool TryBalanceDebug()
     {
         return roundCombatActive && Motion != null && Motion.TryPlayBalanceDebug();
@@ -186,6 +195,11 @@ public class CombatActorController : MonoBehaviour
     {
         if (Motion != null)
             Motion.SetPushDirection(direction);
+    }
+
+    public void ClearQueuedDecision()
+    {
+        hasQueuedDecision = false;
     }
 
     public void SetOpponent(CombatActorController opponent)

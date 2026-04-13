@@ -1,13 +1,10 @@
 fileFormatVersion: 2
-guid: 537571ee6d6ef0e429f2e4bb337774e8
+guid: 36705b3469f9cfd4f91f9dba288210d7
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -163532602377701999
-    second: WaterHeal_Effect_0
-  - first:
-      213: -934456156218503685
-    second: WaterHeal_Effect_1
+      213: 9212275650587600386
+    second: Light_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -49,7 +46,7 @@ TextureImporter:
   nPOTScale: 0
   lightmap: 0
   compressionQuality: 50
-  spriteMode: 1
+  spriteMode: 2
   spriteExtrude: 1
   spriteMeshType: 1
   alignment: 0
@@ -103,35 +100,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: WaterHeal_Effect_0
+      name: Light_0
       rect:
         serializedVersion: 2
-        x: 3
-        y: 50
-        width: 167
-        height: 76
-      alignment: 0
-      pivot: {x: 0, y: 0}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: -1
-      bones: []
-      spriteID: 195f41ee6f30bbdf0800000000000000
-      internalID: -163532602377701999
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: WaterHeal_Effect_1
-      rect:
-        serializedVersion: 2
-        x: 70
+        x: 0
         y: 0
-        width: 230
-        height: 73
+        width: 20
+        height: 24
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -140,8 +115,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: bfd4b6ea3152803f0800000000000000
-      internalID: -934456156218503685
+      spriteID: 206214e35e398df70800000000000000
+      internalID: 9212275650587600386
       vertices: []
       indices: 
       edges: []
@@ -150,7 +125,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 5e97eb03825dee720800000000000000
+    spriteID: 
     internalID: 0
     vertices: []
     indices: 
@@ -160,8 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      WaterHeal_Effect_0: -163532602377701999
-      WaterHeal_Effect_1: -934456156218503685
+      Light_0: 9212275650587600386
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
