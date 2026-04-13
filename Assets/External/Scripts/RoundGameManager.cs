@@ -3,6 +3,7 @@ using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.UI;
 
 public enum RoundGameState
 {
@@ -121,6 +122,18 @@ public class RoundGameManager : MonoBehaviour
     [Tooltip("튜토리얼 중에만 켤 패널 루트(선택).")]
     [SerializeField] private GameObject coachTutorialRoot;
 
+    [Tooltip("튜토리얼 목표 진행 이미지를 묶은 루트(선택).")]
+    [SerializeField] private GameObject coachTutorialProgressRoot;
+
+    [Tooltip("튜토리얼 목표 진행 표시용 이미지 5칸. 진행할 때마다 각 이미지의 fillAmount를 1로 채웁니다.")]
+    [SerializeField] private Image[] coachTutorialProgressImages = Array.Empty<Image>();
+
+    [Tooltip("튜토리얼 진행 이미지가 차오르는 시간(초).")]
+    [SerializeField, Min(0f)] private float coachTutorialProgressFillDuration = 0.18f;
+
+    [Tooltip("튜토리얼 진행 이미지가 찰 때 잠깐 커지는 배율.")]
+    [SerializeField, Min(1f)] private float coachTutorialProgressPunchScale = 1.12f;
+
     [SerializeField] private RoundTutorialCoachStep[] coachTutorialSteps = Array.Empty<RoundTutorialCoachStep>();
 
     [Tooltip("튜토리얼 동안 전투 입력(공격·회피 등)을 허용할지.")]
@@ -134,6 +147,24 @@ public class RoundGameManager : MonoBehaviour
 
     [Tooltip("코치 TMP 아래에 남은 초를 덧붙임.")]
     [SerializeField] private bool appendSecondsToCoachText = true;
+
+    [Tooltip("코치 대사 한 줄 자동 표시 시간(초).")]
+    [SerializeField, Min(0f)] private float coachTutorialDialoguePageDelay = 2f;
+
+    [Tooltip("코치 대사 타자 효과 글자 간격(초). 0이면 즉시 표시.")]
+    [SerializeField, Min(0f)] private float coachTutorialDialogueTypeCharacterDelay = 0.03f;
+
+    [Tooltip("튜토리얼 페이즈 사이 대기 시간(초).")]
+    [SerializeField, Min(0f)] private float coachTutorialStepTransitionDelay = 2f;
+
+    [Tooltip("이 키를 2초간 누르고 있으면 튜토리얼을 스킵합니다.")]
+    [SerializeField] private KeyCode coachTutorialSkipHoldKey = KeyCode.G;
+
+    [Tooltip("튜토리얼 스킵 키 홀드 시간(초).")]
+    [SerializeField, Min(0f)] private float coachTutorialSkipHoldSeconds = 2f;
+
+    [Tooltip("튜토리얼 스킵 홀드 진행도를 표시할 Image. fillAmount가 0에서 1로 찹니다.")]
+    [SerializeField] private Image coachTutorialSkipHoldFillImage;
 
     public event Action<int, float> RoundStarted;
     public event Action<float, float> RoundTimeChanged;
@@ -169,6 +200,11 @@ public class RoundGameManager : MonoBehaviour
     float tutorialCoachEnemyAutoAttackTimer;
     bool tutorialForcedClashAwaitingResult;
     Coroutine tutorialForcedClashRoutine;
+    Coroutine[] coachTutorialProgressFillRoutines;
+    Vector3[] coachTutorialProgressBaseScales;
+    int coachTutorialProgressVisibleSlotCount;
+    int coachTutorialProgressFilledVisualCount;
+    float coachTutorialSkipHoldTimer;
 
     void Reset()
     {
@@ -242,6 +278,8 @@ public class RoundGameManager : MonoBehaviour
             }
         }
 
+        UpdateCoachTutorialSkipInput();
+
         if (State != RoundGameState.RoundActive)
             return;
 
@@ -310,6 +348,8 @@ public class RoundGameManager : MonoBehaviour
         if (!tutorialIsRunning)
             return;
 
+        coachTutorialSkipHoldTimer = 0f;
+        SetCoachTutorialSkipHoldFill(0f);
         StopTutorialCoachRoutine();
         StartRound(1);
     }
@@ -604,6 +644,7 @@ public class RoundGameManager : MonoBehaviour
 
         ApplyCoachTutorialStepVisual(step);
         RefreshNextRoundStatusText();
+        TryLockCoachTutorialCombatOnStepComplete(step);
     }
 
     void HandlePlayerCombatEventRaised(CombatEventData eventData)
@@ -623,6 +664,7 @@ public class RoundGameManager : MonoBehaviour
             tutorialCoachPlayerDodgeSuccessCount++;
             ApplyCoachTutorialStepVisual(step);
             RefreshNextRoundStatusText();
+            TryLockCoachTutorialCombatOnStepComplete(step);
             return;
         }
 
@@ -640,12 +682,14 @@ public class RoundGameManager : MonoBehaviour
                 tutorialCoachPlayerBasicAttackCount++;
                 ApplyCoachTutorialStepVisual(step);
                 RefreshNextRoundStatusText();
+                TryLockCoachTutorialCombatOnStepComplete(step);
                 break;
 
             case CombatEventKind.AttackMeetingWin:
                 tutorialCoachPlayerBasicAttackCount++;
                 ApplyCoachTutorialStepVisual(step);
                 RefreshNextRoundStatusText();
+                TryLockCoachTutorialCombatOnStepComplete(step);
                 break;
         }
     }
@@ -665,6 +709,7 @@ public class RoundGameManager : MonoBehaviour
         tutorialCoachIgnoredEnemyFeintCount++;
         ApplyCoachTutorialStepVisual(step);
         RefreshNextRoundStatusText();
+        TryLockCoachTutorialCombatOnStepComplete(step);
     }
 
     void HandleClashMinigameEnded(ClashMinigameResult result, float gaugeNormalized)
@@ -684,6 +729,7 @@ public class RoundGameManager : MonoBehaviour
         tutorialCoachForcedClashCount++;
         ApplyCoachTutorialStepVisual(step);
         RefreshNextRoundStatusText();
+        TryLockCoachTutorialCombatOnStepComplete(step);
     }
 
     void ApplyCurrentBuildToPlayer()
@@ -825,6 +871,48 @@ public class RoundGameManager : MonoBehaviour
             coachTutorialSteps[i].enemyAutoAttackInterval = Mathf.Max(0f, coachTutorialSteps[i].enemyAutoAttackInterval);
             coachTutorialSteps[i].enemyAutoFeintChance = Mathf.Clamp01(coachTutorialSteps[i].enemyAutoFeintChance);
         }
+
+        coachTutorialProgressFillDuration = Mathf.Max(0f, coachTutorialProgressFillDuration);
+        coachTutorialProgressPunchScale = Mathf.Max(1f, coachTutorialProgressPunchScale);
+        coachTutorialDialoguePageDelay = Mathf.Max(0f, coachTutorialDialoguePageDelay);
+        coachTutorialDialogueTypeCharacterDelay = Mathf.Max(0f, coachTutorialDialogueTypeCharacterDelay);
+        coachTutorialStepTransitionDelay = Mathf.Max(0f, coachTutorialStepTransitionDelay);
+        coachTutorialSkipHoldSeconds = Mathf.Max(0f, coachTutorialSkipHoldSeconds);
+    }
+
+    void UpdateCoachTutorialSkipInput()
+    {
+        if (State != RoundGameState.TutorialCoach)
+        {
+            coachTutorialSkipHoldTimer = 0f;
+            SetCoachTutorialSkipHoldFill(0f);
+            return;
+        }
+
+        if (!Input.GetKey(coachTutorialSkipHoldKey))
+        {
+            coachTutorialSkipHoldTimer = 0f;
+            SetCoachTutorialSkipHoldFill(0f);
+            return;
+        }
+
+        coachTutorialSkipHoldTimer += Time.unscaledDeltaTime;
+        float normalized = coachTutorialSkipHoldSeconds <= 0f
+            ? 1f
+            : Mathf.Clamp01(coachTutorialSkipHoldTimer / coachTutorialSkipHoldSeconds);
+        SetCoachTutorialSkipHoldFill(normalized);
+        if (coachTutorialSkipHoldTimer < coachTutorialSkipHoldSeconds)
+            return;
+
+        SkipCoachTutorial();
+    }
+
+    void SetCoachTutorialSkipHoldFill(float normalized)
+    {
+        if (coachTutorialSkipHoldFillImage == null)
+            return;
+
+        coachTutorialSkipHoldFillImage.fillAmount = Mathf.Clamp01(normalized);
     }
 
     IEnumerator HealThenIntermissionNextRound()
@@ -999,6 +1087,11 @@ public class RoundGameManager : MonoBehaviour
             if (step == null)
                 continue;
 
+            yield return RunCoachTutorialStepDialogue(step);
+
+            if (State != RoundGameState.TutorialCoach)
+                yield break;
+
             BeginCoachTutorialStep(step);
             step.onStepStarted?.Invoke();
 
@@ -1034,7 +1127,10 @@ public class RoundGameManager : MonoBehaviour
 
             ApplyCoachTutorialStepVisual(step);
             step.onStepFinished?.Invoke();
-            EndCoachTutorialStep();
+            EndCoachTutorialStep(resumeEnemyAi: false);
+
+            if (i < coachTutorialSteps.Length - 1 && coachTutorialStepTransitionDelay > 0f)
+                yield return WaitForCoachTutorialSeconds(coachTutorialStepTransitionDelay);
         }
 
         tutorialCoachRoutine = null;
@@ -1042,6 +1138,31 @@ public class RoundGameManager : MonoBehaviour
         ClearCoachTutorialVisuals();
         SetCoachTutorialRootActive(false);
         StartRound(1);
+    }
+
+    IEnumerator RunCoachTutorialStepDialogue(RoundTutorialCoachStep step)
+    {
+        string[] pages = BuildCoachTutorialDialoguePages(step);
+        if (pages.Length == 0)
+            yield break;
+
+        ApplyRoundCombatActive(false);
+
+        for (int i = 0; i < pages.Length; i++)
+        {
+            yield return PlayCoachTutorialDialoguePage(pages[i], showAdvancePrompt: false);
+
+            if (State != RoundGameState.TutorialCoach)
+                yield break;
+
+            yield return WaitForCoachTutorialSeconds(coachTutorialDialoguePageDelay);
+
+            if (State != RoundGameState.TutorialCoach)
+                yield break;
+        }
+
+        if (State == RoundGameState.TutorialCoach)
+            ApplyRoundCombatActive(coachTutorialAllowCombat);
     }
 
     void BeginCoachTutorialStep(RoundTutorialCoachStep step)
@@ -1080,7 +1201,7 @@ public class RoundGameManager : MonoBehaviour
         }
     }
 
-    void EndCoachTutorialStep()
+    void EndCoachTutorialStep(bool resumeEnemyAi = true)
     {
         tutorialCoachPlayerBasicAttackCount = 0;
         tutorialCoachPlayerDodgeSuccessCount = 0;
@@ -1095,7 +1216,7 @@ public class RoundGameManager : MonoBehaviour
             tutorialForcedClashRoutine = null;
         }
 
-        if (enemyAiController != null)
+        if (resumeEnemyAi && enemyAiController != null)
             enemyAiController.SetManualAiPaused(false);
     }
 
@@ -1133,6 +1254,20 @@ public class RoundGameManager : MonoBehaviour
             || tutorialCoachForcedClashCount >= step.requiredForcedClashes;
 
         return basicAttackComplete && dodgeComplete && ignoredFeintComplete && forcedClashComplete;
+    }
+
+    void TryLockCoachTutorialCombatOnStepComplete(RoundTutorialCoachStep step)
+    {
+        if (State != RoundGameState.TutorialCoach
+            || step == null
+            || !step.waitUntilRequirementsCompleted
+            || !StepHasAnyRequirements(step)
+            || !IsCoachTutorialStepComplete(step))
+        {
+            return;
+        }
+
+        ApplyRoundCombatActive(false);
     }
 
     bool TryTriggerTutorialEnemyAction(RoundTutorialCoachStep step)
@@ -1202,32 +1337,36 @@ public class RoundGameManager : MonoBehaviour
 
     void ApplyCoachTutorialStepVisual(RoundTutorialCoachStep step)
     {
-        if (step == null || coachTutorialText == null)
+        if (step == null)
             return;
 
         string body = step.coachText ?? string.Empty;
-        if (step.requiredPlayerBasicAttacks > 0)
+        bool usesImageProgress = UpdateCoachTutorialProgressVisual(step);
+        if (!usesImageProgress)
         {
-            int clampedCount = Mathf.Min(tutorialCoachPlayerBasicAttackCount, step.requiredPlayerBasicAttacks);
-            body += $"\n\n<size=90%><color=#D8D8D8>일반 공격 {clampedCount}/{step.requiredPlayerBasicAttacks}</color></size>";
-        }
+            if (step.requiredPlayerBasicAttacks > 0)
+            {
+                int clampedCount = Mathf.Min(tutorialCoachPlayerBasicAttackCount, step.requiredPlayerBasicAttacks);
+                body += $"\n\n<size=90%><color=#FF7300>일반 공격 {clampedCount}/{step.requiredPlayerBasicAttacks}</color></size>";
+            }
 
-        if (step.requiredPlayerDodgeSuccesses > 0)
-        {
-            int clampedCount = Mathf.Min(tutorialCoachPlayerDodgeSuccessCount, step.requiredPlayerDodgeSuccesses);
-            body += $"\n\n<size=90%><color=#D8D8D8>회피 성공 {clampedCount}/{step.requiredPlayerDodgeSuccesses}</color></size>";
-        }
+            if (step.requiredPlayerDodgeSuccesses > 0)
+            {
+                int clampedCount = Mathf.Min(tutorialCoachPlayerDodgeSuccessCount, step.requiredPlayerDodgeSuccesses);
+                body += $"\n\n<size=90%><color=#FF7300>회피 성공 {clampedCount}/{step.requiredPlayerDodgeSuccesses}</color></size>";
+            }
 
-        if (step.requiredIgnoredEnemyFeints > 0)
-        {
-            int clampedCount = Mathf.Min(tutorialCoachIgnoredEnemyFeintCount, step.requiredIgnoredEnemyFeints);
-            body += $"\n\n<size=90%><color=#D8D8D8>페이크 무시 {clampedCount}/{step.requiredIgnoredEnemyFeints}</color></size>";
-        }
+            if (step.requiredIgnoredEnemyFeints > 0)
+            {
+                int clampedCount = Mathf.Min(tutorialCoachIgnoredEnemyFeintCount, step.requiredIgnoredEnemyFeints);
+                body += $"\n\n<size=90%><color=#FF7300>페이크 무시 {clampedCount}/{step.requiredIgnoredEnemyFeints}</color></size>";
+            }
 
-        if (step.requiredForcedClashes > 0)
-        {
-            int clampedCount = Mathf.Min(tutorialCoachForcedClashCount, step.requiredForcedClashes);
-            body += $"\n\n<size=90%><color=#D8D8D8>공격 경합 {clampedCount}/{step.requiredForcedClashes}</color></size>";
+            if (step.requiredForcedClashes > 0)
+            {
+                int clampedCount = Mathf.Min(tutorialCoachForcedClashCount, step.requiredForcedClashes);
+                body += $"\n\n<size=90%><color=#FF7300>공격 경합 {clampedCount}/{step.requiredForcedClashes}</color></size>";
+            }
         }
 
         if (appendSecondsToCoachText && tutorialCoachStepRemaining > 0f)
@@ -1236,15 +1375,366 @@ public class RoundGameManager : MonoBehaviour
                 $"\n\n<size=85%><color=#AAAAAA>({Mathf.CeilToInt(tutorialCoachStepRemaining)}초)</color></size>";
         }
 
-        coachTutorialText.text = body;
+        SetCoachTutorialDisplayText(body);
+    }
+
+    void ApplyCoachTutorialDialogueVisual(string body, bool showAdvancePrompt)
+    {
+        ClearCoachTutorialProgressVisual();
+        SetCoachTutorialDisplayText(FormatCoachTutorialDialogueText(body, showAdvancePrompt));
     }
 
     void ClearCoachTutorialVisuals()
     {
-        if (coachTutorialText != null)
-            coachTutorialText.text = string.Empty;
+        ClearCoachTutorialProgressVisual();
+        SetCoachTutorialDisplayText(string.Empty);
 
         tutorialCoachStepRemaining = 0f;
+    }
+
+    void SetCoachTutorialDisplayText(string text)
+    {
+        SetCoachTutorialDisplayText(text, int.MaxValue);
+    }
+
+    void SetCoachTutorialDisplayText(string text, int maxVisibleCharacters)
+    {
+        TextMeshProUGUI targetText = GetCoachTutorialDisplayTarget();
+        if (targetText == null)
+            return;
+
+        targetText.text = text;
+        targetText.maxVisibleCharacters = maxVisibleCharacters;
+    }
+
+    static string[] BuildCoachTutorialDialoguePages(RoundTutorialCoachStep step)
+    {
+        if (step == null || string.IsNullOrWhiteSpace(step.coachText))
+            return Array.Empty<string>();
+
+        string normalized = step.coachText.Replace("\r\n", "\n");
+        string[] rawLines = normalized.Split('\n');
+        System.Collections.Generic.List<string> pages = new();
+        for (int i = 0; i < rawLines.Length; i++)
+        {
+            string line = rawLines[i].Trim();
+            if (!string.IsNullOrWhiteSpace(line))
+                pages.Add(line);
+        }
+
+        return pages.ToArray();
+    }
+
+    string FormatCoachTutorialDialogueText(string body, bool showAdvancePrompt)
+    {
+        if (string.IsNullOrWhiteSpace(body))
+            body = string.Empty;
+
+        if (showAdvancePrompt)
+            body += "\n\n<size=85%><color=#AAAAAA>자동 진행</color></size>";
+
+        return body;
+    }
+
+    bool UpdateCoachTutorialProgressVisual(RoundTutorialCoachStep step)
+    {
+        if (!TryGetCoachTutorialProgress(step, out int currentCount, out int requiredCount))
+        {
+            ClearCoachTutorialProgressVisual();
+            return false;
+        }
+
+        int visibleSlotCount = 0;
+        if (coachTutorialProgressImages != null)
+            visibleSlotCount = Mathf.Min(requiredCount, coachTutorialProgressImages.Length);
+
+        bool canUseImageProgress = visibleSlotCount > 0;
+        if (!canUseImageProgress)
+        {
+            ClearCoachTutorialProgressVisual();
+            return false;
+        }
+
+        if (coachTutorialProgressRoot != null)
+            coachTutorialProgressRoot.SetActive(true);
+
+        int filledCount = Mathf.Min(currentCount, visibleSlotCount);
+        EnsureCoachTutorialProgressAnimationState();
+        bool needsSnapRefresh = visibleSlotCount != coachTutorialProgressVisibleSlotCount
+            || filledCount < coachTutorialProgressFilledVisualCount;
+
+        if (needsSnapRefresh)
+        {
+            SnapCoachTutorialProgressVisual(visibleSlotCount, filledCount);
+        }
+        else
+        {
+            for (int i = 0; i < coachTutorialProgressImages.Length; i++)
+            {
+                Image progressImage = coachTutorialProgressImages[i];
+                if (progressImage == null)
+                    continue;
+
+                bool shouldShow = i < visibleSlotCount;
+                progressImage.gameObject.SetActive(shouldShow);
+            }
+
+            for (int i = coachTutorialProgressFilledVisualCount; i < filledCount; i++)
+                StartCoachTutorialProgressFillAnimation(i);
+        }
+
+        coachTutorialProgressVisibleSlotCount = visibleSlotCount;
+        coachTutorialProgressFilledVisualCount = filledCount;
+        return true;
+    }
+
+    void ClearCoachTutorialProgressVisual()
+    {
+        if (coachTutorialProgressRoot != null)
+            coachTutorialProgressRoot.SetActive(false);
+
+        if (coachTutorialProgressImages == null)
+            return;
+
+        for (int i = 0; i < coachTutorialProgressImages.Length; i++)
+        {
+            Image progressImage = coachTutorialProgressImages[i];
+            if (progressImage == null)
+                continue;
+
+            StopCoachTutorialProgressFillAnimation(i);
+            progressImage.fillAmount = 0f;
+            progressImage.gameObject.SetActive(false);
+            if (coachTutorialProgressBaseScales != null && i < coachTutorialProgressBaseScales.Length)
+                progressImage.rectTransform.localScale = coachTutorialProgressBaseScales[i];
+        }
+
+        coachTutorialProgressVisibleSlotCount = 0;
+        coachTutorialProgressFilledVisualCount = 0;
+    }
+
+    bool TryGetCoachTutorialProgress(RoundTutorialCoachStep step, out int currentCount, out int requiredCount)
+    {
+        currentCount = 0;
+        requiredCount = 0;
+
+        if (step == null)
+            return false;
+
+        if (step.requiredPlayerBasicAttacks > 0)
+        {
+            currentCount = tutorialCoachPlayerBasicAttackCount;
+            requiredCount = step.requiredPlayerBasicAttacks;
+            return true;
+        }
+
+        if (step.requiredPlayerDodgeSuccesses > 0)
+        {
+            currentCount = tutorialCoachPlayerDodgeSuccessCount;
+            requiredCount = step.requiredPlayerDodgeSuccesses;
+            return true;
+        }
+
+        if (step.requiredIgnoredEnemyFeints > 0)
+        {
+            currentCount = tutorialCoachIgnoredEnemyFeintCount;
+            requiredCount = step.requiredIgnoredEnemyFeints;
+            return true;
+        }
+
+        if (step.requiredForcedClashes > 0)
+        {
+            currentCount = tutorialCoachForcedClashCount;
+            requiredCount = step.requiredForcedClashes;
+            return true;
+        }
+
+        return false;
+    }
+
+    void EnsureCoachTutorialProgressAnimationState()
+    {
+        int length = coachTutorialProgressImages != null ? coachTutorialProgressImages.Length : 0;
+        if (length <= 0)
+            return;
+
+        if (coachTutorialProgressFillRoutines == null || coachTutorialProgressFillRoutines.Length != length)
+            coachTutorialProgressFillRoutines = new Coroutine[length];
+
+        if (coachTutorialProgressBaseScales == null || coachTutorialProgressBaseScales.Length != length)
+        {
+            coachTutorialProgressBaseScales = new Vector3[length];
+            for (int i = 0; i < length; i++)
+            {
+                if (coachTutorialProgressImages[i] != null)
+                    coachTutorialProgressBaseScales[i] = coachTutorialProgressImages[i].rectTransform.localScale;
+                else
+                    coachTutorialProgressBaseScales[i] = Vector3.one;
+            }
+        }
+    }
+
+    void SnapCoachTutorialProgressVisual(int visibleSlotCount, int filledCount)
+    {
+        for (int i = 0; i < coachTutorialProgressImages.Length; i++)
+        {
+            Image progressImage = coachTutorialProgressImages[i];
+            if (progressImage == null)
+                continue;
+
+            StopCoachTutorialProgressFillAnimation(i);
+
+            bool shouldShow = i < visibleSlotCount;
+            progressImage.gameObject.SetActive(shouldShow);
+            progressImage.fillAmount = shouldShow && i < filledCount ? 1f : 0f;
+
+            if (coachTutorialProgressBaseScales != null && i < coachTutorialProgressBaseScales.Length)
+                progressImage.rectTransform.localScale = coachTutorialProgressBaseScales[i];
+        }
+    }
+
+    void StartCoachTutorialProgressFillAnimation(int index)
+    {
+        if (coachTutorialProgressImages == null
+            || index < 0
+            || index >= coachTutorialProgressImages.Length
+            || coachTutorialProgressImages[index] == null)
+        {
+            return;
+        }
+
+        StopCoachTutorialProgressFillAnimation(index);
+        coachTutorialProgressFillRoutines[index] = StartCoroutine(RunCoachTutorialProgressFillAnimation(index));
+    }
+
+    void StopCoachTutorialProgressFillAnimation(int index)
+    {
+        if (coachTutorialProgressFillRoutines == null
+            || index < 0
+            || index >= coachTutorialProgressFillRoutines.Length)
+        {
+            return;
+        }
+
+        if (coachTutorialProgressFillRoutines[index] != null)
+        {
+            StopCoroutine(coachTutorialProgressFillRoutines[index]);
+            coachTutorialProgressFillRoutines[index] = null;
+        }
+    }
+
+    IEnumerator RunCoachTutorialProgressFillAnimation(int index)
+    {
+        Image progressImage = coachTutorialProgressImages[index];
+        if (progressImage == null)
+            yield break;
+
+        RectTransform rectTransform = progressImage.rectTransform;
+        Vector3 baseScale = coachTutorialProgressBaseScales != null && index < coachTutorialProgressBaseScales.Length
+            ? coachTutorialProgressBaseScales[index]
+            : rectTransform.localScale;
+
+        progressImage.gameObject.SetActive(true);
+
+        if (coachTutorialProgressFillDuration <= 0f)
+        {
+            progressImage.fillAmount = 1f;
+            rectTransform.localScale = baseScale;
+            coachTutorialProgressFillRoutines[index] = null;
+            yield break;
+        }
+
+        progressImage.fillAmount = 0f;
+        rectTransform.localScale = baseScale;
+
+        float elapsed = 0f;
+        while (elapsed < coachTutorialProgressFillDuration)
+        {
+            yield return null;
+
+            elapsed += coachTutorialUseUnscaledTime
+                ? Time.unscaledDeltaTime
+                : Time.deltaTime;
+
+            float t = Mathf.Clamp01(elapsed / coachTutorialProgressFillDuration);
+            float easedFill = 1f - Mathf.Pow(1f - t, 3f);
+            float punch = Mathf.Sin(t * Mathf.PI) * (coachTutorialProgressPunchScale - 1f);
+
+            progressImage.fillAmount = easedFill;
+            rectTransform.localScale = baseScale * (1f + punch);
+        }
+
+        progressImage.fillAmount = 1f;
+        rectTransform.localScale = baseScale;
+        coachTutorialProgressFillRoutines[index] = null;
+    }
+
+    IEnumerator PlayCoachTutorialDialoguePage(string body, bool showAdvancePrompt)
+    {
+        string formattedText = FormatCoachTutorialDialogueText(body, showAdvancePrompt);
+        TextMeshProUGUI targetText = GetCoachTutorialDisplayTarget();
+        if (targetText == null)
+        {
+            SetCoachTutorialDisplayText(formattedText);
+            yield break;
+        }
+
+        SetCoachTutorialDisplayText(formattedText, 0);
+        targetText.ForceMeshUpdate();
+
+        int totalVisibleCharacters = targetText.textInfo.characterCount;
+        if (totalVisibleCharacters <= 0 || coachTutorialDialogueTypeCharacterDelay <= 0f)
+        {
+            targetText.maxVisibleCharacters = int.MaxValue;
+            yield break;
+        }
+
+        int visibleCharacters = 0;
+        float elapsed = coachTutorialDialogueTypeCharacterDelay;
+        while (visibleCharacters < totalVisibleCharacters && State == RoundGameState.TutorialCoach)
+        {
+            yield return null;
+
+            elapsed += coachTutorialUseUnscaledTime
+                ? Time.unscaledDeltaTime
+                : Time.deltaTime;
+
+            while (elapsed >= coachTutorialDialogueTypeCharacterDelay && visibleCharacters < totalVisibleCharacters)
+            {
+                visibleCharacters++;
+                elapsed -= coachTutorialDialogueTypeCharacterDelay;
+            }
+
+            targetText.maxVisibleCharacters = visibleCharacters;
+        }
+
+        targetText.maxVisibleCharacters = int.MaxValue;
+    }
+
+    TextMeshProUGUI GetCoachTutorialDisplayTarget()
+    {
+        if (coachTutorialText != null)
+            return coachTutorialText;
+
+        if (nextRoundCountdownText != null && State == RoundGameState.TutorialCoach)
+            return nextRoundCountdownText;
+
+        return null;
+    }
+
+    IEnumerator WaitForCoachTutorialSeconds(float duration)
+    {
+        if (duration <= 0f)
+            yield break;
+
+        float remaining = duration;
+        while (remaining > 0f && State == RoundGameState.TutorialCoach)
+        {
+            yield return null;
+            remaining -= coachTutorialUseUnscaledTime
+                ? Time.unscaledDeltaTime
+                : Time.deltaTime;
+        }
     }
 
     void SetCoachTutorialRootActive(bool active)
