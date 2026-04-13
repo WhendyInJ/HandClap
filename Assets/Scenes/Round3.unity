@@ -5850,6 +5850,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::InGameMenuManager
   playerController: {fileID: 438342679581519013}
   playerHealth: {fileID: 438342679581519014}
+  battleUiController: {fileID: 0}
   gameOverPanel: {fileID: 2024150987}
   hideGameOverPanelOnAwake: 1
   pauseOnGameOver: 1
@@ -8100,7 +8101,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1076647458612139662, guid: 6103ca1899a30e24a8e01a1535ae3f82, type: 3}
       propertyPath: maxHealth
-      value: 1111
+      value: 15
       objectReference: {fileID: 0}
     - target: {fileID: 1076647458612139662, guid: 6103ca1899a30e24a8e01a1535ae3f82, type: 3}
       propertyPath: healthFill
