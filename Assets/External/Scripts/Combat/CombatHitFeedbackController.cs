@@ -17,8 +17,6 @@ public class CombatHitFeedbackController : MonoBehaviour
     [SerializeField, Min(0f)] private float randomCircleRadius = 0.25f;
     [SerializeField] private bool useSpawnPointRotation = true;
     [SerializeField, Min(0f)] private float destroyAfterSeconds = 1.5f;
-    [SerializeField] private bool suppressHitPrefabAfterHandContact = true;
-    [SerializeField, Min(0f)] private float handContactSuppressWindow = 0.15f;
 
     [Header("Hit Effect Animation")]
     [SerializeField] private bool animateHitPrefabOnSpawn = true;
@@ -57,8 +55,7 @@ public class CombatHitFeedbackController : MonoBehaviour
         if (!TryGetHitTarget(eventData, out CombatActorController hitTarget, out bool hitWillStagger))
             return;
 
-        if (!ShouldSuppressHitPrefab())
-            SpawnHitPrefab(hitTarget);
+        SpawnHitPrefab(hitTarget);
 
         PlayHitReact(hitTarget, hitWillStagger);
     }
@@ -74,6 +71,7 @@ public class CombatHitFeedbackController : MonoBehaviour
         switch (eventData.Kind)
         {
             case CombatEventKind.AttackHit:
+            case CombatEventKind.AttackMeetingWin:
                 hitTarget = eventData.Opponent;
                 break;
 
@@ -117,12 +115,6 @@ public class CombatHitFeedbackController : MonoBehaviour
             return;
 
         hitTarget.TryPlayHitReact();
-    }
-
-    bool ShouldSuppressHitPrefab()
-    {
-        return suppressHitPrefabAfterHandContact
-            && CombatHandContactFeedbackController.WasContactPlayedRecently(handContactSuppressWindow);
     }
 
     void PlayHitEffectSpawnAnimation(GameObject instance)

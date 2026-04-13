@@ -363,7 +363,11 @@ public class EnemyController : MonoBehaviour
     IEnumerator RunAttackTelegraph(EnemyActingChoice action)
     {
         float firstStop = Random.Range(attackTelegraphFirstStopMin, attackTelegraphFirstStopMax);
+        bool isFakeAttack = action == EnemyActingChoice.FakeAttack;
 
+        SetAttackTelegraphColorMode(isFakeAttack
+            ? SpriteFillColorMode.FakeAttack
+            : SpriteFillColorMode.Attack);
         SetAttackTelegraphActive(true);
         SetAttackTelegraphFill(0f);
 
@@ -376,7 +380,7 @@ public class EnemyController : MonoBehaviour
             yield break;
         }
 
-        if (action == EnemyActingChoice.FakeAttack)
+        if (isFakeAttack)
         {
             SetAttackTelegraphActive(false);
             SetAttackTelegraphFill(0f);
@@ -433,6 +437,21 @@ public class EnemyController : MonoBehaviour
         {
             if (attackTelegraphFills[i] != null)
                 attackTelegraphFills[i].SetFill(fill);
+        }
+    }
+
+    void SetAttackTelegraphColorMode(SpriteFillColorMode colorMode)
+    {
+        if (attackTelegraphFill != null)
+            attackTelegraphFill.SetColorMode(colorMode);
+
+        if (attackTelegraphFills == null)
+            return;
+
+        for (int i = 0; i < attackTelegraphFills.Length; i++)
+        {
+            if (attackTelegraphFills[i] != null)
+                attackTelegraphFills[i].SetColorMode(colorMode);
         }
     }
 

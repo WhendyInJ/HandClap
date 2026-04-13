@@ -1,4 +1,11 @@
 using UnityEngine;
+using UnityEngine.Serialization;
+
+public enum SpriteFillColorMode
+{
+    Attack,
+    FakeAttack,
+}
 
 [RequireComponent(typeof(SpriteRenderer))]
 public class SpriteFillController : MonoBehaviour
@@ -7,7 +14,9 @@ public class SpriteFillController : MonoBehaviour
     static readonly int ColorId = Shader.PropertyToID("_Color");
 
     [Range(0,1)] public float fill = 1f;
-    public Color color = Color.white;
+    [FormerlySerializedAs("color")] [SerializeField] private Color attackColor = Color.white;
+    [SerializeField] private Color fakeAttackColor = new Color(1f, 0.35f, 0.1f, 1f);
+    [SerializeField] private SpriteFillColorMode colorMode = SpriteFillColorMode.Attack;
 
     private SpriteRenderer spriteRenderer;
     private MaterialPropertyBlock propertyBlock;
@@ -38,7 +47,14 @@ public class SpriteFillController : MonoBehaviour
 
     public void SetColor(Color value)
     {
-        color = value;
+        attackColor = value;
+        colorMode = SpriteFillColorMode.Attack;
+        Apply();
+    }
+
+    public void SetColorMode(SpriteFillColorMode mode)
+    {
+        colorMode = mode;
         Apply();
     }
 
@@ -58,7 +74,14 @@ public class SpriteFillController : MonoBehaviour
 
         spriteRenderer.GetPropertyBlock(propertyBlock);
         propertyBlock.SetFloat(FillId, fill);
-        propertyBlock.SetColor(ColorId, color);
+        propertyBlock.SetColor(ColorId, GetCurrentColor());
         spriteRenderer.SetPropertyBlock(propertyBlock);
+    }
+
+    Color GetCurrentColor()
+    {
+        return colorMode == SpriteFillColorMode.FakeAttack
+            ? fakeAttackColor
+            : attackColor;
     }
 }

@@ -3,7 +3,6 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public class CombatHandContactFeedbackController : MonoBehaviour
 {
-    private static float lastContactTime = float.NegativeInfinity;
 
     [Header("Combat Actors")]
     [SerializeField] private CombatActorController playerController;
@@ -21,20 +20,6 @@ public class CombatHandContactFeedbackController : MonoBehaviour
              "false이면 한쪽만 뻗어도 발동(단방향 접촉 허용).")]
     [SerializeField] private bool requirePalmClash = true;
     [SerializeField, Min(0f)] private float contactCooldown = 0.08f;
-
-    [Header("Contact Effect")]
-    [SerializeField] private GameObject contactEffectPrefab;
-    [SerializeField] private Transform parentOverride;
-    [SerializeField] private bool alignEffectToPalmLine = true;
-    [SerializeField, Min(0f)] private float randomCircleRadius = 0f;
-    [SerializeField, Min(0f)] private float destroyAfterSeconds = 1.0f;
-
-    [Header("Effect Animation")]
-    [SerializeField] private bool animateEffectOnSpawn = true;
-    [SerializeField, Min(0f)] private float effectStartScaleMultiplier = 1.25f;
-    [SerializeField, Min(0f)] private float effectShrinkScaleMultiplier = 0.9f;
-    [SerializeField, Min(0f)] private float effectFadeInDuration = 0.035f;
-    [SerializeField, Min(0f)] private float effectSettleDuration = 0.08f;
 
     [Header("Debug")]
     [SerializeField] private bool logContactState;
@@ -109,16 +94,6 @@ public class CombatHandContactFeedbackController : MonoBehaviour
         contactActive = true;
         nextContactTime = Time.time + contactCooldown;
 
-        Vector3 playerPalm = playerPalmContact.position;
-        Vector3 enemyPalm = enemyPalmContact.position;
-        Vector3 contactPoint = (playerPalm + enemyPalm) * 0.5f;
-
-        Vector2 randomOffset = Random.insideUnitCircle * randomCircleRadius;
-        contactPoint += new Vector3(randomOffset.x, randomOffset.y, 0f);
-
-        SpawnContactEffect(contactPoint, enemyPalm - playerPalm);
-        lastContactTime = Time.time;
-
         if (logContactState)
         {
             Debug.Log(
@@ -126,41 +101,6 @@ public class CombatHandContactFeedbackController : MonoBehaviour
                 $"Player:{GetHandPhase(playerController)} Enemy:{GetHandPhase(enemyController)}",
                 this);
         }
-    }
-
-    void SpawnContactEffect(Vector3 position, Vector3 palmLine)
-    {
-        if (contactEffectPrefab == null)
-            return;
-
-        Quaternion rotation = contactEffectPrefab.transform.rotation;
-        if (alignEffectToPalmLine && palmLine.sqrMagnitude > 0.0001f)
-        {
-            float angle = Mathf.Atan2(palmLine.y, palmLine.x) * Mathf.Rad2Deg;
-            rotation = Quaternion.Euler(0f, 0f, angle);
-        }
-
-        GameObject instance = Instantiate(contactEffectPrefab, position, rotation, parentOverride);
-        PlaySpawnAnimation(instance);
-
-        if (destroyAfterSeconds > 0f)
-            Destroy(instance, destroyAfterSeconds);
-    }
-
-    void PlaySpawnAnimation(GameObject instance)
-    {
-        if (!animateEffectOnSpawn || instance == null)
-            return;
-
-        HitEffectSpawnAnimator animator = instance.GetComponent<HitEffectSpawnAnimator>();
-        if (animator == null)
-            animator = instance.AddComponent<HitEffectSpawnAnimator>();
-
-        animator.Play(
-            effectStartScaleMultiplier,
-            effectShrinkScaleMultiplier,
-            effectFadeInDuration,
-            effectSettleDuration);
     }
 
     void ResetContact()
@@ -270,10 +210,5 @@ public class CombatHandContactFeedbackController : MonoBehaviour
         // 컨트롤러가 이번에 새로 할당됐다면 이벤트 구독도 갱신
         if (playerController != null || enemyController != null)
             SubscribeCombatEvents();
-    }
-
-    public static bool WasContactPlayedRecently(float seconds)
-    {
-        return Time.time - lastContactTime <= Mathf.Max(0f, seconds);
     }
 }

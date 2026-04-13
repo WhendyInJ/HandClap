@@ -38,6 +38,7 @@ public class BattleUiController : MonoBehaviour
     [SerializeField, Min(0f)] private float enemyStaggerDuration = 2.0f;
     [SerializeField, Min(1f)] private float staggerBonusDamageMultiplier = 1.5f;
     [SerializeField, Range(0f, 0.5f)] private float dodgeFailGaugePenalty = 0.1f;
+    [SerializeField] private bool logAttackMeetingDamage = true;
 
     private float currentFailGauge;
     private float currentRecoverGauge;
@@ -257,6 +258,9 @@ public class BattleUiController : MonoBehaviour
             case CombatEventKind.AttackMeetingWin:
                 HandleAttackMeetingWin(eventData);
                 break;
+            case CombatEventKind.AttackClashed:
+                HandleAttackMeetingClash(eventData);
+                break;
             case CombatEventKind.AttackDodged:
                 HandleAttackDodged(eventData);
                 break;
@@ -286,7 +290,9 @@ public class BattleUiController : MonoBehaviour
             float baseDamage = playerStats != null
                 ? playerStats.CalculateDamageToEnemy(enemyStats)
                 : 0f;
-            ApplyEnemyDamage(baseDamage * eventData.AdvantageRatio);
+            float rawDamage = baseDamage * eventData.AdvantageRatio;
+            LogAttackMeetingDamage(eventData, playerDamage: 0f, enemyDamage: GetFinalEnemyDamage(rawDamage));
+            ApplyEnemyDamage(rawDamage);
             return;
         }
 
@@ -295,8 +301,18 @@ public class BattleUiController : MonoBehaviour
             float baseDamage = enemyStats != null
                 ? enemyStats.CalculateDamageToPlayer(playerStats)
                 : 0f;
-            ApplyPlayerDamage(baseDamage * eventData.AdvantageRatio);
+            float damage = baseDamage * eventData.AdvantageRatio;
+            LogAttackMeetingDamage(eventData, playerDamage: damage, enemyDamage: 0f);
+            ApplyPlayerDamage(damage);
         }
+    }
+
+    void HandleAttackMeetingClash(CombatEventData eventData)
+    {
+        if (eventData.Actor != playerController)
+            return;
+
+        LogAttackMeetingDamage(eventData, playerDamage: 0f, enemyDamage: 0f);
     }
 
     void HandleAttackHit(CombatEventData eventData)
@@ -692,6 +708,21 @@ public class BattleUiController : MonoBehaviour
             return;
 
         enemyHealthUi.fillImage.fillAmount = EnemyHealthNormalized;
+    }
+
+    float GetFinalEnemyDamage(float damage)
+    {
+        return Mathf.Max(0f, damage) * GetEnemyIncomingDamageMultiplier();
+    }
+
+    void LogAttackMeetingDamage(CombatEventData eventData, float playerDamage, float enemyDamage)
+    {
+        if (!logAttackMeetingDamage)
+            return;
+
+        Debug.Log(
+            $"[AttackMeeting] {eventData.Summary} / 플레이어 피해:{playerDamage:F2}, 적 피해:{enemyDamage:F2}",
+            this);
     }
 
     void SubscribeMinigameEvents()

@@ -36,6 +36,10 @@ public class CombatActorController : MonoBehaviour
     private bool feintBeatDodge;
     private bool feintBeatAttack;
     private bool feintAttackCounterResolved;
+    private bool hasInitialAttackMeetingFrame;
+    private Vector3 initialAttackMeetingMidpoint;
+    private Vector3 initialAttackMeetingPlayerToEnemyAxis = Vector3.right;
+    private float initialAttackMeetingHalfDistance = 1f;
 
     void Reset()
     {
@@ -50,6 +54,7 @@ public class CombatActorController : MonoBehaviour
     void Start()
     {
         EnsureDefaultPlayerInput();
+        CaptureInitialAttackMeetingFrame(false);
     }
 
     void LateUpdate()
@@ -174,6 +179,7 @@ public class CombatActorController : MonoBehaviour
     public void SetOpponent(CombatActorController opponent)
     {
         opponentController = opponent;
+        CaptureInitialAttackMeetingFrame(true);
     }
 
     public void SetRoundCombatActive(bool active)
@@ -338,6 +344,57 @@ public class CombatActorController : MonoBehaviour
             gameObject.AddComponent<PlayerInputController>();
     }
 
+    void CaptureInitialAttackMeetingFrame(bool force)
+    {
+        if (!force && hasInitialAttackMeetingFrame)
+            return;
+
+        if (opponentController == null)
+            return;
+
+        CombatActorController player = GetPlayerActor(opponentController);
+        CombatActorController enemy = GetEnemyActor(opponentController);
+
+        Vector3 playerPosition = player != null ? player.transform.position : transform.position;
+        Vector3 enemyPosition = enemy != null ? enemy.transform.position : opponentController.transform.position;
+        Vector3 playerToEnemy = enemyPosition - playerPosition;
+        playerToEnemy.z = 0f;
+
+        float distance = playerToEnemy.magnitude;
+        if (distance <= 0.0001f)
+        {
+            playerToEnemy = Vector3.right;
+            distance = 2f;
+        }
+
+        Vector3 midpoint = (playerPosition + enemyPosition) * 0.5f;
+        Vector3 axis = playerToEnemy.normalized;
+        float halfDistance = Mathf.Max(0.0001f, distance * 0.5f);
+
+        ApplyInitialAttackMeetingFrame(midpoint, axis, halfDistance);
+
+        if (opponentController != null)
+            opponentController.ApplyInitialAttackMeetingFrame(midpoint, axis, halfDistance);
+    }
+
+    void ApplyInitialAttackMeetingFrame(Vector3 midpoint, Vector3 playerToEnemyAxis, float halfDistance)
+    {
+        initialAttackMeetingMidpoint = midpoint;
+        initialAttackMeetingPlayerToEnemyAxis = playerToEnemyAxis.sqrMagnitude > 0.0001f
+            ? playerToEnemyAxis.normalized
+            : Vector3.right;
+        initialAttackMeetingHalfDistance = Mathf.Max(0.0001f, halfDistance);
+        hasInitialAttackMeetingFrame = true;
+    }
+
+    void EnsureInitialAttackMeetingFrame(CombatActorController opponent)
+    {
+        if (opponentController == null && opponent != null)
+            opponentController = opponent;
+
+        CaptureInitialAttackMeetingFrame(false);
+    }
+
     bool QueueDecision(CombatState state)
     {
         if (!CanAttemptDecision)
@@ -455,6 +512,9 @@ public class CombatActorController : MonoBehaviour
     /// </summary>
     void ResolveAttackMeetingByExtension(CombatActorController opponent)
     {
+        if (TryResolveAttackMeetingByInitialMidpoint(opponent))
+            return;
+
         Motion.MarkAttackClashed();
         opponent.Motion.MarkAttackClashed();
 
@@ -494,6 +554,98 @@ public class CombatActorController : MonoBehaviour
             CombatState.Attack, CombatState.Attack, winSummary, advantageRatio);
         loser.RaiseCombatEvent(CombatEventKind.AttackMeetingLoss, winner,
             CombatState.Attack, CombatState.Attack, lossSummary, advantageRatio);
+    }
+
+    bool TryResolveAttackMeetingByInitialMidpoint(CombatActorController opponent)
+    {
+        if (Motion == null || opponent == null || opponent.Motion == null)
+            return false;
+
+        Motion.MarkAttackClashed();
+        opponent.Motion.MarkAttackClashed();
+        EnsureInitialAttackMeetingFrame(opponent);
+
+        Vector3 contactPoint = (PalmContactWorldPosition + opponent.PalmContactWorldPosition) * 0.5f;
+        float signedDistanceFromCenter = Vector3.Dot(
+            contactPoint - initialAttackMeetingMidpoint,
+            initialAttackMeetingPlayerToEnemyAxis);
+        float signedOffsetNormalized = initialAttackMeetingHalfDistance > 0f
+            ? signedDistanceFromCenter / initialAttackMeetingHalfDistance
+            : 0f;
+        float absOffsetNormalized = Mathf.Abs(signedOffsetNormalized);
+        string positionSummary = BuildAttackMeetingPositionSummary(signedOffsetNormalized, contactPoint);
+
+        if (absOffsetNormalized <= midpointClashTolerance)
+        {
+            string clashSummary = $"{CombatRuleResolver.Resolve(CombatState.Attack, CombatState.Attack).Summary} / {positionSummary}";
+            LogCombatOutcome(CombatState.Attack, CombatState.Attack, clashSummary);
+            opponent.LogCombatOutcome(CombatState.Attack, CombatState.Attack, clashSummary);
+            RaiseCombatEvent(CombatEventKind.AttackClashed, opponent,
+                CombatState.Attack, CombatState.Attack, clashSummary);
+            opponent.RaiseCombatEvent(CombatEventKind.AttackClashed, this,
+                CombatState.Attack, CombatState.Attack, clashSummary);
+            return true;
+        }
+
+        float maxRange = 1f - midpointClashTolerance;
+        float advantageRatio = maxRange > 0f
+            ? Mathf.Clamp01((absOffsetNormalized - midpointClashTolerance) / maxRange)
+            : 1f;
+
+        CombatActorController player = GetPlayerActor(opponent);
+        CombatActorController enemy = GetEnemyActor(opponent);
+        CombatActorController winner = signedOffsetNormalized > 0f ? player : enemy;
+        CombatActorController loser = signedOffsetNormalized > 0f ? enemy : player;
+
+        if (winner == null || loser == null)
+        {
+            winner = signedOffsetNormalized > 0f ? this : opponent;
+            loser = signedOffsetNormalized > 0f ? opponent : this;
+        }
+
+        string winSummary = $"공격 만남 우세 ({advantageRatio * 100f:F0}%) / {positionSummary}";
+        string lossSummary = $"공격 만남 열세 ({advantageRatio * 100f:F0}%) / {positionSummary}";
+
+        winner.LogCombatOutcome(CombatState.Attack, CombatState.Attack, winSummary);
+        loser.LogCombatOutcome(CombatState.Attack, CombatState.Attack, lossSummary);
+
+        winner.RaiseCombatEvent(CombatEventKind.AttackMeetingWin, loser,
+            CombatState.Attack, CombatState.Attack, winSummary, advantageRatio);
+        loser.RaiseCombatEvent(CombatEventKind.AttackMeetingLoss, winner,
+            CombatState.Attack, CombatState.Attack, lossSummary, advantageRatio);
+        return true;
+    }
+
+    CombatActorController GetPlayerActor(CombatActorController opponent)
+    {
+        if (actorSide == CombatActorSide.Player)
+            return this;
+
+        if (opponent != null && opponent.actorSide == CombatActorSide.Player)
+            return opponent;
+
+        return null;
+    }
+
+    CombatActorController GetEnemyActor(CombatActorController opponent)
+    {
+        if (actorSide == CombatActorSide.Enemy)
+            return this;
+
+        if (opponent != null && opponent.actorSide == CombatActorSide.Enemy)
+            return opponent;
+
+        return null;
+    }
+
+    string BuildAttackMeetingPositionSummary(float signedOffsetNormalized, Vector3 contactPoint)
+    {
+        float percent = Mathf.Abs(signedOffsetNormalized) * 100f;
+        string side = Mathf.Abs(signedOffsetNormalized) <= 0.001f
+            ? "중앙"
+            : signedOffsetNormalized > 0f ? "적쪽" : "플레이어쪽";
+
+        return $"중앙 기준 {side} {percent:F0}% (충돌점 {contactPoint.x:F2}, {contactPoint.y:F2})";
     }
 
     void RegisterDodgeSuccess()
