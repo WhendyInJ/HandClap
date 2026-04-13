@@ -4878,7 +4878,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3635271369414605121, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: pushDirection.x
-      value: 1
+      value: -1
       objectReference: {fileID: 0}
     - target: {fileID: 3635271369414605121, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: hitReactDuration
@@ -4910,11 +4910,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4182225252941181897, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: reactDodgeWeight
-      value: 0.3
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 4182225252941181897, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
+      propertyPath: targetController
+      value: 
+      objectReference: {fileID: 438342679581519013}
+    - target: {fileID: 4182225252941181897, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: actionCooldownMax
-      value: 1
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 4182225252941181897, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: actionCooldownMin
@@ -4926,7 +4930,7 @@ PrefabInstance:
       objectReference: {fileID: 2015795231}
     - target: {fileID: 4182225252941181897, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: actFakeAttackWeight
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 4182225252941181897, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: attackTelegraphFill
@@ -4934,11 +4938,11 @@ PrefabInstance:
       objectReference: {fileID: 1580132048}
     - target: {fileID: 4182225252941181897, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: reactStayNeutralWeight
-      value: 0.7
+      value: 0.5
       objectReference: {fileID: 0}
     - target: {fileID: 4182225252941181897, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: reactCounterAttackWeight
-      value: 0
+      value: 0.2
       objectReference: {fileID: 0}
     - target: {fileID: 4182225252941181897, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: clashTugMinigameController
@@ -4959,6 +4963,14 @@ PrefabInstance:
     - target: {fileID: 4182225252941181897, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: attackTelegraphFills.Array.size
       value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 4182225252941181897, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
+      propertyPath: postTelegraphActionDelayRange.x
+      value: 0.2
+      objectReference: {fileID: 0}
+    - target: {fileID: 4182225252941181897, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
+      propertyPath: postTelegraphActionDelayRange.y
+      value: 0.5
       objectReference: {fileID: 0}
     - target: {fileID: 4182225252941181897, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: 'attackTelegraphFills.Array.data[0]'

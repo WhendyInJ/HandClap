@@ -29,6 +29,12 @@ public enum CombatEventKind
     FeintPunished,
 
     /// <summary>
+    /// An actor attacked into an opponent's feint.
+    /// The actor who attacked should stagger.
+    /// </summary>
+    FeintCountered,
+
+    /// <summary>
     /// Feint ended without the opponent dodging or punishing it.
     /// The actor who used the feint should stagger.
     /// </summary>

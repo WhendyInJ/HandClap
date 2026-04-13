@@ -266,6 +266,9 @@ public class BattleUiController : MonoBehaviour
             case CombatEventKind.FeintPunished:
                 HandleFeintPunished(eventData);
                 break;
+            case CombatEventKind.FeintCountered:
+                HandleFeintCountered(eventData);
+                break;
             case CombatEventKind.FeintFailed:
                 HandleFeintFailed(eventData);
                 break;
@@ -391,6 +394,21 @@ public class BattleUiController : MonoBehaviour
             if (enemyController != null)
                 enemyController.RequestStagger(enemyStaggerDuration);
         }
+    }
+
+    void HandleFeintCountered(CombatEventData eventData)
+    {
+        if (eventData.Opponent == playerController)
+        {
+            StartPlayerQte(
+                0f,
+                leanForward: true,
+                PlayerStaggerGaugeStartLayout.TargetLeftNeedleRight);
+            return;
+        }
+
+        if (eventData.Opponent == enemyController && enemyController != null)
+            enemyController.RequestStagger(enemyStaggerDuration, leanForward: true);
     }
 
     void HandleFeintFailed(CombatEventData eventData)

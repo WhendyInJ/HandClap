@@ -77,6 +77,10 @@ public class EnemyController : MonoBehaviour
     [SerializeField, HideInInspector] private SpriteFillController attackTelegraphFill;
     [SerializeField] private SpriteFillController[] attackTelegraphFills;
 
+    [Header("Post Telegraph Action Delay")]
+    [Tooltip("After the telegraph ends, the enemy waits a random time in this range before taking the selected action.")]
+    [SerializeField] private Vector2 postTelegraphActionDelayRange = new Vector2(0f, 0.25f);
+
     // ── Runtime State ──────────────────────────────────────────────────────────
 
     private CombatActorController actorController;
@@ -153,6 +157,8 @@ public class EnemyController : MonoBehaviour
         attackTelegraphDelayRange.x = Mathf.Max(0f, attackTelegraphDelayRange.x);
         attackTelegraphDelayRange.y = Mathf.Max(attackTelegraphDelayRange.x, attackTelegraphDelayRange.y);
         attackTelegraphDamageMultiplier = Mathf.Clamp01(attackTelegraphDamageMultiplier);
+        postTelegraphActionDelayRange.x = Mathf.Max(0f, postTelegraphActionDelayRange.x);
+        postTelegraphActionDelayRange.y = Mathf.Max(postTelegraphActionDelayRange.x, postTelegraphActionDelayRange.y);
     }
 
     void Update()
@@ -280,6 +286,14 @@ public class EnemyController : MonoBehaviour
             yield break;
         }
 
+        yield return WaitForPostTelegraphActionDelay();
+
+        if (!IsAiActive())
+        {
+            AbortAiStateRoutine();
+            yield break;
+        }
+
         EnemyActingChoice action = RollAction();
         LogAI("행동", ActionLabel(action), ActionToCombatState(action));
 
@@ -338,6 +352,16 @@ public class EnemyController : MonoBehaviour
 
         SetAttackTelegraphActive(false);
         SetAttackTelegraphFill(0f);
+    }
+
+    IEnumerator WaitForPostTelegraphActionDelay()
+    {
+        float duration = Random.Range(postTelegraphActionDelayRange.x, postTelegraphActionDelayRange.y);
+        if (duration <= 0f)
+            yield break;
+
+        LogAI("Action Delay", $"{duration:F2}s", CombatState.Neutral);
+        yield return WaitForSecondsWithAiPause(duration);
     }
 
     void SetAttackTelegraphActive(bool active)

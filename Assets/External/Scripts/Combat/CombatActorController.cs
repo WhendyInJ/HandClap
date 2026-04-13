@@ -33,6 +33,9 @@ public class CombatActorController : MonoBehaviour
     private CombatState queuedDecisionState;
     private bool dodgeSucceeded;
     private bool feintWasPunished;
+    private bool feintBeatDodge;
+    private bool feintBeatAttack;
+    private bool feintAttackCounterResolved;
 
     void Reset()
     {
@@ -72,6 +75,9 @@ public class CombatActorController : MonoBehaviour
 
         hasQueuedDecision = false;
         feintWasPunished = false;
+        feintBeatDodge = IsOpponentDodgeCommitted();
+        feintBeatAttack = IsOpponentAttackCommitted();
+        feintAttackCounterResolved = false;
 
         CombatState opponentState = opponentController != null
             ? opponentController.ResolutionCombatState
@@ -98,6 +104,9 @@ public class CombatActorController : MonoBehaviour
             return false;
 
         feintWasPunished = false;
+        feintBeatDodge = IsOpponentDodgeCommitted();
+        feintBeatAttack = IsOpponentAttackCommitted();
+        feintAttackCounterResolved = false;
 
         CombatState opponentState = opponentController != null
             ? opponentController.ResolutionCombatState
@@ -229,7 +238,9 @@ public class CombatActorController : MonoBehaviour
     public CombatState ResolutionCombatState => hasQueuedDecision ? queuedDecisionState : CurrentCombatState;
     public bool IsAttackClashWindowActive => Motion != null && Motion.IsAttackClashWindowActive;
     public bool CanFakeAttack => roundCombatActive && Motion != null && Motion.CanFakeAttack;
+    bool IsAttackCommitted => hasQueuedDecision && queuedDecisionState == CombatState.Attack || CurrentCombatState == CombatState.Attack;
     public bool IsDodgeWindowActive => Motion != null && Motion.IsDodging;
+    bool IsDodgeCommitted => hasQueuedDecision && queuedDecisionState == CombatState.Dodge || IsDodgeWindowActive;
     public bool IsHandContactActive => Motion != null && Motion.IsHandContactActive;
     public float HandExtensionNormalized => Motion != null ? Motion.HandExtensionNormalized : 0f;
     public CombatHandExtensionPhase HandExtensionPhase => Motion != null
@@ -334,6 +345,12 @@ public class CombatActorController : MonoBehaviour
 
         hasQueuedDecision = true;
         queuedDecisionState = state;
+
+        if (state == CombatState.Dodge)
+            NotifyOpponentFeintOfDodge();
+        else if (state == CombatState.Attack)
+            NotifyOpponentFeintOfAttack();
+
         return true;
     }
 
@@ -345,12 +362,14 @@ public class CombatActorController : MonoBehaviour
         switch (attemptedState)
         {
             case CombatState.Attack:
-                Motion?.TryPlayAttack(ResolveAttackOutcome, GetAttackCooldownDuration());
+                if (Motion != null && Motion.TryPlayAttack(ResolveAttackOutcome, GetAttackCooldownDuration()))
+                    NotifyOpponentFeintOfAttack();
                 break;
 
             case CombatState.Dodge:
                 dodgeSucceeded = false;
-                Motion?.TryPlayDodge(HandleDodgeMotionFinished, GetDodgeCooldownDuration());
+                if (Motion != null && Motion.TryPlayDodge(HandleDodgeMotionFinished, GetDodgeCooldownDuration()))
+                    NotifyOpponentFeintOfDodge();
                 break;
         }
     }
@@ -379,20 +398,8 @@ public class CombatActorController : MonoBehaviour
             return;
         }
 
-        // 상대가 페인트 동작 중이라면 별도 이벤트로 분기
-        if (opponentController != null && opponentController.IsFeinting)
-        {
-            const string feintPunishSummary = "페인트 응징";
-            LogCombatOutcome(CombatState.Attack, CombatState.Neutral, feintPunishSummary);
-            opponentController.MarkFeintPunished();
-            RaiseCombatEvent(
-                CombatEventKind.FeintPunished,
-                opponentController,
-                CombatState.Attack,
-                CombatState.Neutral,
-                feintPunishSummary);
+        if (opponentController != null && opponentController.TryResolveFeintCounteredAttack(this))
             return;
-        }
 
         CombatState opponentState = opponentController != null
             ? opponentController.ResolutionCombatState
@@ -561,25 +568,84 @@ public class CombatActorController : MonoBehaviour
             ? opponentController.ResolutionCombatState
             : CombatState.Neutral;
 
-        if (opponentController != null && opponentController.IsDodgeWindowActive)
+        if (feintBeatDodge || IsOpponentDodgeCommitted())
         {
             LogCombatOutcome(CombatState.Attack, CombatState.Dodge, "Fake beat dodge");
             return;
         }
 
-        const string failSummary = "Fake failed";
-        LogCombatOutcome(CombatState.Attack, opponentState, failSummary);
-        RaiseCombatEvent(
-            CombatEventKind.FeintFailed,
-            opponentController,
-            CombatState.Attack,
-            opponentState,
-            failSummary);
+        if (feintAttackCounterResolved)
+            return;
+
+        if (feintBeatAttack || IsOpponentAttackCommitted())
+        {
+            TryResolveFeintCounteredAttack(opponentController);
+            return;
+        }
+
+        LogCombatOutcome(CombatState.Attack, opponentState, "Fake no effect");
     }
 
     void MarkFeintPunished()
     {
         feintWasPunished = true;
+    }
+
+    void NotifyOpponentFeintOfDodge()
+    {
+        if (opponentController != null && opponentController.IsFeinting)
+            opponentController.MarkFeintBeatDodge(this);
+    }
+
+    void NotifyOpponentFeintOfAttack()
+    {
+        if (opponentController != null && opponentController.IsFeinting)
+            opponentController.MarkFeintBeatAttack(this);
+    }
+
+    bool IsOpponentAttackCommitted()
+    {
+        return opponentController != null && opponentController.IsAttackCommitted;
+    }
+
+    bool IsOpponentDodgeCommitted()
+    {
+        return opponentController != null && opponentController.IsDodgeCommitted;
+    }
+
+    void MarkFeintBeatAttack(CombatActorController attackingOpponent)
+    {
+        if (!IsFeinting || attackingOpponent != opponentController)
+            return;
+
+        feintBeatAttack = true;
+    }
+
+    bool TryResolveFeintCounteredAttack(CombatActorController attackingOpponent)
+    {
+        if (!IsFeinting || attackingOpponent != opponentController || feintAttackCounterResolved)
+            return false;
+
+        feintBeatAttack = true;
+        feintAttackCounterResolved = true;
+
+        const string summary = "Fake beat attack";
+        LogCombatOutcome(CombatState.Attack, CombatState.Attack, summary);
+        RaiseCombatEvent(
+            CombatEventKind.FeintCountered,
+            attackingOpponent,
+            CombatState.Attack,
+            CombatState.Attack,
+            summary);
+        return true;
+    }
+
+    void MarkFeintBeatDodge(CombatActorController dodgingOpponent)
+    {
+        if (!IsFeinting || dodgingOpponent != opponentController)
+            return;
+
+        feintBeatDodge = true;
     }
 
     public string BuildCombatLane(
