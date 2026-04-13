@@ -3212,7 +3212,8 @@ MonoBehaviour:
       \uD68C\uD53C\uD574 \uBD10.\n\uD68C\uD53C\uC5D0 \uC131\uACF5\uD558\uBA74 \uC801\uC774
       \uC7A0\uC2DC <color=#FF7300>\uCDE8\uC57D</color>\uD574\uC9C4\uB2E4.\n\uADF8\uB54C
       \uACF5\uACA9\uD558\uBA74 <color=#FF7300>\uB354 \uD070 \uB370\uBBF8\uC9C0</color>\uB97C
-      \uC904 \uC218 \uC788\uB2E4."
+      \uC904 \uC218 \uC788\uB2E4.\n\uC790\uC2E0\uB3C4 \uB118\uC5B4\uC9C8 \uC218 \uC788\uC73C\uB2C8 
+      <color=#FF7300>[Space]</color>\uB85C \uC798 \uBC84\uD2F0\uB3C4\uB85D "
     displaySeconds: 0
     requiredPlayerBasicAttacks: 0
     requiredPlayerDodgeSuccesses: 5
@@ -3282,6 +3283,27 @@ MonoBehaviour:
     onStepFinished:
       m_PersistentCalls:
         m_Calls: []
+  - coachText: "\uC88B\uC544, <color=#FF7300>\uC900\uBE44</color>\uAC00 \uB410\uAD70.\n\uC2AC\uC2AC
+      \uCC3E\uC73C\uB7EC \uAC00\uBCFC\uAE4C?\n<color=#FF7300>[\uD2B8\uB85C\uD53C]</color>\uB97C."
+    displaySeconds: 4
+    requiredPlayerBasicAttacks: 0
+    requiredPlayerDodgeSuccesses: 0
+    requiredIgnoredEnemyFeints: 0
+    requiredForcedClashes: 5
+    pauseEnemyAi: 1
+    enemyReactsToPlayerBasicAttack: 0
+    enemyAutoAttackInterval: 0
+    enemyAutoAttackStartsImmediately: 0
+    enemyAutoMixAttackAndFeint: 0
+    enemyAutoFeintChance: 0
+    forceSimultaneousAttackClash: 0
+    waitUntilRequirementsCompleted: 0
+    onStepStarted:
+      m_PersistentCalls:
+        m_Calls: []
+    onStepFinished:
+      m_PersistentCalls:
+        m_Calls: []
   coachTutorialAllowCombat: 1
   suppressCombatResolutionDuringCoachTutorial: 0
   coachTutorialUseUnscaledTime: 0
@@ -3292,6 +3314,9 @@ MonoBehaviour:
   coachTutorialSkipHoldKey: 103
   coachTutorialSkipHoldSeconds: 2
   coachTutorialSkipHoldFillImage: {fileID: 589327250}
+  coachTutorialCompleteSceneName: WJPractice
+  coachTutorialSceneFadeOutSeconds: 1.2
+  coachTutorialSceneFadeInSeconds: 1.2
 --- !u!4 &1802868414
 Transform:
   m_ObjectHideFlags: 0

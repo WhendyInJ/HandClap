@@ -3,6 +3,7 @@ using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public enum RoundGameState
@@ -165,6 +166,15 @@ public class RoundGameManager : MonoBehaviour
 
     [Tooltip("튜토리얼 스킵 홀드 진행도를 표시할 Image. fillAmount가 0에서 1로 찹니다.")]
     [SerializeField] private Image coachTutorialSkipHoldFillImage;
+
+    [Tooltip("튜토리얼 종료 또는 스킵 후 이동할 씬 이름.")]
+    [SerializeField] private string coachTutorialCompleteSceneName;
+
+    [Tooltip("튜토리얼 종료 시 페이드아웃 시간(초).")]
+    [SerializeField, Min(0f)] private float coachTutorialSceneFadeOutSeconds = 1.2f;
+
+    [Tooltip("다음 씬 진입 후 페이드인 시간(초).")]
+    [SerializeField, Min(0f)] private float coachTutorialSceneFadeInSeconds = 1.2f;
 
     public event Action<int, float> RoundStarted;
     public event Action<float, float> RoundTimeChanged;
@@ -345,13 +355,13 @@ public class RoundGameManager : MonoBehaviour
     public void SkipCoachTutorial()
     {
         bool tutorialIsRunning = tutorialCoachRoutine != null || State == RoundGameState.TutorialCoach;
-        if (!tutorialIsRunning)
+        if (!tutorialIsRunning || TutorialSceneFadeOverlayRunner.IsTransitioning)
             return;
 
         coachTutorialSkipHoldTimer = 0f;
         SetCoachTutorialSkipHoldFill(0f);
         StopTutorialCoachRoutine();
-        StartRound(1);
+        BeginCoachTutorialSceneTransition();
     }
 
     public void StartRound(int roundNumber)
@@ -878,6 +888,8 @@ public class RoundGameManager : MonoBehaviour
         coachTutorialDialogueTypeCharacterDelay = Mathf.Max(0f, coachTutorialDialogueTypeCharacterDelay);
         coachTutorialStepTransitionDelay = Mathf.Max(0f, coachTutorialStepTransitionDelay);
         coachTutorialSkipHoldSeconds = Mathf.Max(0f, coachTutorialSkipHoldSeconds);
+        coachTutorialSceneFadeOutSeconds = Mathf.Max(0f, coachTutorialSceneFadeOutSeconds);
+        coachTutorialSceneFadeInSeconds = Mathf.Max(0f, coachTutorialSceneFadeInSeconds);
     }
 
     void UpdateCoachTutorialSkipInput()
@@ -913,6 +925,21 @@ public class RoundGameManager : MonoBehaviour
             return;
 
         coachTutorialSkipHoldFillImage.fillAmount = Mathf.Clamp01(normalized);
+    }
+
+    void BeginCoachTutorialSceneTransition()
+    {
+        if (string.IsNullOrWhiteSpace(coachTutorialCompleteSceneName))
+        {
+            Debug.LogWarning("튜토리얼 종료 후 이동할 씬 이름이 비어 있어 Round 1을 시작합니다.");
+            StartRound(1);
+            return;
+        }
+
+        TutorialSceneFadeOverlayRunner.Begin(
+            coachTutorialCompleteSceneName,
+            coachTutorialSceneFadeOutSeconds,
+            coachTutorialSceneFadeInSeconds);
     }
 
     IEnumerator HealThenIntermissionNextRound()
@@ -1137,7 +1164,7 @@ public class RoundGameManager : MonoBehaviour
         EndCoachTutorialStep();
         ClearCoachTutorialVisuals();
         SetCoachTutorialRootActive(false);
-        StartRound(1);
+        BeginCoachTutorialSceneTransition();
     }
 
     IEnumerator RunCoachTutorialStepDialogue(RoundTutorialCoachStep step)
@@ -1768,5 +1795,112 @@ public class RoundGameManager : MonoBehaviour
         }
 
         return null;
+    }
+}
+
+public sealed class TutorialSceneFadeOverlayRunner : MonoBehaviour
+{
+    static TutorialSceneFadeOverlayRunner activeRunner;
+
+    string sceneName;
+    float fadeOutSeconds;
+    float fadeInSeconds;
+    Image fadeImage;
+
+    public static bool IsTransitioning => activeRunner != null;
+
+    public static void Begin(string targetSceneName, float fadeOutDuration, float fadeInDuration)
+    {
+        if (activeRunner != null)
+            return;
+
+        GameObject runnerObject = new("TutorialSceneFadeOverlayRunner");
+        DontDestroyOnLoad(runnerObject);
+
+        activeRunner = runnerObject.AddComponent<TutorialSceneFadeOverlayRunner>();
+        activeRunner.sceneName = targetSceneName;
+        activeRunner.fadeOutSeconds = Mathf.Max(0f, fadeOutDuration);
+        activeRunner.fadeInSeconds = Mathf.Max(0f, fadeInDuration);
+        activeRunner.InitializeOverlay();
+        activeRunner.StartCoroutine(activeRunner.RunTransition());
+    }
+
+    void InitializeOverlay()
+    {
+        GameObject canvasObject = new("FadeCanvas");
+        canvasObject.transform.SetParent(transform, false);
+
+        Canvas canvas = canvasObject.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = short.MaxValue;
+
+        canvasObject.AddComponent<CanvasScaler>();
+        canvasObject.AddComponent<GraphicRaycaster>();
+
+        GameObject imageObject = new("FadeImage");
+        imageObject.transform.SetParent(canvasObject.transform, false);
+
+        RectTransform rectTransform = imageObject.AddComponent<RectTransform>();
+        rectTransform.anchorMin = Vector2.zero;
+        rectTransform.anchorMax = Vector2.one;
+        rectTransform.offsetMin = Vector2.zero;
+        rectTransform.offsetMax = Vector2.zero;
+
+        fadeImage = imageObject.AddComponent<Image>();
+        fadeImage.color = new Color(0f, 0f, 0f, 0f);
+        fadeImage.raycastTarget = true;
+    }
+
+    IEnumerator RunTransition()
+    {
+        yield return FadeAlpha(0f, 1f, fadeOutSeconds);
+
+        AsyncOperation loadOperation = SceneManager.LoadSceneAsync(sceneName);
+        while (loadOperation != null && !loadOperation.isDone)
+            yield return null;
+
+        yield return null;
+        yield return FadeAlpha(1f, 0f, fadeInSeconds);
+
+        activeRunner = null;
+        Destroy(gameObject);
+    }
+
+    IEnumerator FadeAlpha(float from, float to, float duration)
+    {
+        if (fadeImage == null)
+            yield break;
+
+        Color color = fadeImage.color;
+        color.a = from;
+        fadeImage.color = color;
+
+        if (duration <= 0f)
+        {
+            color.a = to;
+            fadeImage.color = color;
+            yield break;
+        }
+
+        float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            yield return null;
+            elapsed += Time.unscaledDeltaTime;
+
+            float t = Mathf.Clamp01(elapsed / duration);
+            float eased = t * t * (3f - 2f * t);
+            color.a = Mathf.Lerp(from, to, eased);
+            fadeImage.color = color;
+        }
+
+        color.a = to;
+        fadeImage.color = color;
+    }
+
+    void OnDestroy()
+    {
+        if (activeRunner == this)
+            activeRunner = null;
     }
 }
