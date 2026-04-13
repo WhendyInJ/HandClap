@@ -5848,9 +5848,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 381e52bbda67aa44e89565dd7f5d77f7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::InGameMenuManager
+  roundGameManager: {fileID: 0}
   playerController: {fileID: 438342679581519013}
   playerHealth: {fileID: 438342679581519014}
-  battleUiController: {fileID: 0}
+  battleUiController: {fileID: 2015795231}
   gameOverPanel: {fileID: 2024150987}
   hideGameOverPanelOnAwake: 1
   pauseOnGameOver: 1

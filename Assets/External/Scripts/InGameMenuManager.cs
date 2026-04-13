@@ -4,6 +4,7 @@ using UnityEngine.SceneManagement;
 public class InGameMenuManager : MonoBehaviour
 {
     [Header("Game Over")]
+    [SerializeField] private RoundGameManager roundGameManager;
     [SerializeField] private CombatActorController playerController;
     [SerializeField] private CombatHealth playerHealth;
     [SerializeField] private BattleUiController battleUiController;
@@ -13,16 +14,19 @@ public class InGameMenuManager : MonoBehaviour
 
     private CombatHealth subscribedPlayerHealth;
     private BattleUiController subscribedBattleUiController;
+    private RoundGameManager subscribedRoundGameManager;
     private bool gameOverShown;
 
     void Reset()
     {
+        TryAutoAssignRoundGameManager();
         TryAutoAssignPlayerHealth();
         TryAutoAssignBattleUiController();
     }
 
     void Awake()
     {
+        TryAutoAssignRoundGameManager();
         TryAutoAssignPlayerHealth();
         TryAutoAssignBattleUiController();
 
@@ -32,15 +36,19 @@ public class InGameMenuManager : MonoBehaviour
 
     void OnEnable()
     {
+        TryAutoAssignRoundGameManager();
         TryAutoAssignPlayerHealth();
         TryAutoAssignBattleUiController();
+        SubscribeRoundGameManager();
         SubscribePlayerHealth();
         SubscribeBattleUiController();
+        ShowGameOverIfRoundIsDefeat();
         ShowGameOverIfPlayerHealthIsEmpty();
     }
 
     void OnDisable()
     {
+        UnsubscribeRoundGameManager();
         UnsubscribePlayerHealth();
         UnsubscribeBattleUiController();
     }
@@ -122,6 +130,31 @@ public class InGameMenuManager : MonoBehaviour
         subscribedBattleUiController = null;
     }
 
+    void SubscribeRoundGameManager()
+    {
+        if (roundGameManager == null || subscribedRoundGameManager == roundGameManager)
+            return;
+
+        UnsubscribeRoundGameManager();
+        subscribedRoundGameManager = roundGameManager;
+        subscribedRoundGameManager.StateChanged += HandleRoundGameStateChanged;
+    }
+
+    void UnsubscribeRoundGameManager()
+    {
+        if (subscribedRoundGameManager == null)
+            return;
+
+        subscribedRoundGameManager.StateChanged -= HandleRoundGameStateChanged;
+        subscribedRoundGameManager = null;
+    }
+
+    void HandleRoundGameStateChanged(RoundGameState state)
+    {
+        if (state == RoundGameState.Defeat)
+            ShowGameOverPanel();
+    }
+
     void HandlePlayerHealthChanged(CombatHealth changedHealth)
     {
         if (changedHealth != playerHealth)
@@ -155,6 +188,18 @@ public class InGameMenuManager : MonoBehaviour
 
         if (playerHealth.CurrentHealth <= 0f)
             ShowGameOverPanel();
+    }
+
+    void ShowGameOverIfRoundIsDefeat()
+    {
+        if (roundGameManager != null && roundGameManager.State == RoundGameState.Defeat)
+            ShowGameOverPanel();
+    }
+
+    void TryAutoAssignRoundGameManager()
+    {
+        if (roundGameManager == null)
+            roundGameManager = FindFirstObjectByType<RoundGameManager>();
     }
 
     void TryAutoAssignPlayerHealth()
