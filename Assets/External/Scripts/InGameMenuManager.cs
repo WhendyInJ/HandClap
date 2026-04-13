@@ -1,5 +1,7 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 public class InGameMenuManager : MonoBehaviour
 {
@@ -11,6 +13,11 @@ public class InGameMenuManager : MonoBehaviour
     [SerializeField] private GameObject gameOverPanel;
     [SerializeField] private bool hideGameOverPanelOnAwake = true;
     [SerializeField] private bool pauseOnGameOver;
+
+    [Header("Game Over Buttons")]
+    [SerializeField] private List<Button> menuButtons = new();
+
+    private int focusedMenuIndex = 0;
 
     private CombatHealth subscribedPlayerHealth;
     private BattleUiController subscribedBattleUiController;
@@ -32,6 +39,29 @@ public class InGameMenuManager : MonoBehaviour
 
         if (hideGameOverPanelOnAwake && gameOverPanel != null)
             gameOverPanel.SetActive(false);
+    }
+
+    void Update()
+    {
+        if (gameOverPanel == null || !gameOverPanel.activeSelf)
+            return;
+
+        if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.LeftArrow))
+        {
+            focusedMenuIndex = (focusedMenuIndex - 1 + menuButtons.Count) % menuButtons.Count;
+            SelectMenuButton(focusedMenuIndex);
+        }
+        else if (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.RightArrow))
+        {
+            focusedMenuIndex = (focusedMenuIndex + 1) % menuButtons.Count;
+            SelectMenuButton(focusedMenuIndex);
+        }
+    }
+
+    void SelectMenuButton(int index)
+    {
+        if (menuButtons[index] != null)
+            menuButtons[index].Select();
     }
 
     void OnEnable()
@@ -74,6 +104,9 @@ public class InGameMenuManager : MonoBehaviour
 
         if (gameOverPanel != null)
             gameOverPanel.SetActive(true);
+
+        focusedMenuIndex = 0;
+        SelectMenuButton(0);
 
         if (pauseOnGameOver)
             Time.timeScale = 0f;

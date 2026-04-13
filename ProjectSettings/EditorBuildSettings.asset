@@ -21,6 +21,18 @@ EditorBuildSettings:
     path: Assets/Scenes/Round3.unity
     guid: 3e2df572fc66f5d48a860054deed52db
   - enabled: 1
+    path: Assets/Scenes/Round1hard.unity
+    guid: f19f9003b102b8d4d8142c9fb0b2954e
+  - enabled: 1
+    path: Assets/Scenes/Round2hard.unity
+    guid: 24c0491f1b9e7b44a8667a147048cfbc
+  - enabled: 1
+    path: Assets/Scenes/Round3hard.unity
+    guid: cc445ca9698e1914689126e72c403dd3
+  - enabled: 1
+    path: Assets/Scenes/Tutorialhard.unity
+    guid: 0adf79a138767ef448d2e29c64eb65d8
+  - enabled: 1
     path: Assets/Scenes/End.unity
     guid: 3d8baf7550ab75545810b195008f5ed0
   m_configObjects:

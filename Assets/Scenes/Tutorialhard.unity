@@ -3316,7 +3316,7 @@ MonoBehaviour:
   coachTutorialSkipHoldKey: 103
   coachTutorialSkipHoldSeconds: 2
   coachTutorialSkipHoldFillImage: {fileID: 589327250}
-  coachTutorialCompleteSceneName: Round1
+  coachTutorialCompleteSceneName: Round1hard
   coachTutorialSceneFadeOutSeconds: 1.2
   coachTutorialSceneFadeInSeconds: 1.2
   playStartPresentation: 1

@@ -2736,9 +2736,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Round3EndSceneLoader
   roundGameManager: {fileID: 1802868413}
   battleUiController: {fileID: 2015795231}
-  targetSceneName: Round2
+  targetSceneName: Round2hard
   requireActiveSceneName: 0
-  requiredActiveSceneName: Round1
+  requiredActiveSceneName: Round1hard
   loadDelay: 0.5
   useUnscaledDelay: 1
   playWinPresentation: 1
@@ -5087,7 +5087,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4198116713485534738, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: fakeAttackColor.g
-      value: 0.3764706
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5242545607161259126, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: m_LocalPosition.x
@@ -5139,7 +5139,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7024335940277118046, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: fakeAttackColor.g
-      value: 0.3764706
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
