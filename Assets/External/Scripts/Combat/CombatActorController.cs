@@ -18,8 +18,8 @@ public class CombatActorController : MonoBehaviour
     [SerializeField] private bool enableCombatDebugLogs = true;
 
     [Header("Attack Meeting")]
-    [Tooltip("두 손의 뻗은 비율 차이가 이 값 이하이면 중간지점 충돌(AttackClashed)로 판정. 예: 0.15 = ±15%")]
-    [SerializeField, Range(0f, 0.5f)] private float midpointClashTolerance = 0.15f;
+    [Tooltip("플레이어/적 뻗기 비율 차이가 이 값 이하이면 중앙충돌. 0.2 = 40:60~60:40")]
+    [SerializeField, Range(0f, 0.5f)] private float centerClashReachDiffTolerance = 0.2f;
     [Tooltip("공격 만남을 감지하는 손바닥 간 최대 거리(월드 단위)")]
     [SerializeField, Min(0f)] private float handMeetingRadius = 0.5f;
 
@@ -68,7 +68,12 @@ public class CombatActorController : MonoBehaviour
 
     public bool TryPush()
     {
-        if (TryFakeAttack())
+        return TryPush(allowFakeAttack: true);
+    }
+
+    public bool TryPush(bool allowFakeAttack)
+    {
+        if (allowFakeAttack && TryFakeAttack())
             return true;
 
         return TryBasicAttackOnly();
@@ -414,9 +419,14 @@ public class CombatActorController : MonoBehaviour
         queuedDecisionState = state;
 
         if (state == CombatState.Dodge)
+        {
+            dodgeSucceeded = false;
             NotifyOpponentFeintOfDodge();
+        }
         else if (state == CombatState.Attack)
+        {
             NotifyOpponentFeintOfAttack();
+        }
 
         return true;
     }
@@ -434,7 +444,6 @@ public class CombatActorController : MonoBehaviour
                 break;
 
             case CombatState.Dodge:
-                dodgeSucceeded = false;
                 if (Motion != null && Motion.TryPlayDodge(HandleDodgeMotionFinished, GetDodgeCooldownDuration()))
                     NotifyOpponentFeintOfDodge();
                 break;
@@ -451,7 +460,7 @@ public class CombatActorController : MonoBehaviour
 
         Motion.MarkAttackResolutionComplete();
 
-        if (opponentController != null && opponentController.IsDodgeWindowActive)
+        if (IsOpponentDodgeCommitted())
         {
             string summary = CombatRuleResolver.Resolve(CombatState.Attack, CombatState.Dodge).Summary;
             LogCombatOutcome(CombatState.Attack, CombatState.Dodge, summary);
@@ -518,52 +527,63 @@ public class CombatActorController : MonoBehaviour
 
     /// <summary>
     /// 두 액터의 HandExtensionNormalized 비율을 비교해 중간지점 충돌 또는 우세/열세를 판정한다.
-    /// midpointClashTolerance 이내 차이이면 AttackClashed, 초과이면 AttackMeetingWin/Loss.
+    /// centerClashReachDiffTolerance 이내 차이이면 AttackClashed, 초과이면 AttackMeetingWin/Loss.
     /// </summary>
     void ResolveAttackMeetingByExtension(CombatActorController opponent)
     {
         if (TryResolveAttackMeetingByInitialMidpoint(opponent))
             return;
 
-        Motion.MarkAttackClashed();
-        opponent.Motion.MarkAttackClashed();
+        Vector3 contactPoint = GetAttackMeetingContactPoint(opponent);
+        MarkAttackMeetingContact(opponent, contactPoint);
 
         float myExt = HandExtensionNormalized;
         float opExt = opponent.HandExtensionNormalized;
-        float extensionDiff = myExt - opExt;  // 양수 = 내가 더 멀리 뻗음
+        float playerReachRatio = actorSide == CombatActorSide.Player ? myExt : opExt;
+        float enemyReachRatio = actorSide == CombatActorSide.Enemy ? myExt : opExt;
+        float reachDiff = playerReachRatio - enemyReachRatio;
+        string reachSummary = BuildAttackMeetingReachSummary(playerReachRatio, enemyReachRatio, contactPoint);
 
-        if (Mathf.Abs(extensionDiff) <= midpointClashTolerance)
+        if (Mathf.Abs(reachDiff) <= centerClashReachDiffTolerance)
         {
             // 중간지점 충돌 — 쌍방 동등
-            string clashSummary = CombatRuleResolver.Resolve(CombatState.Attack, CombatState.Attack).Summary;
+            string clashSummary = $"{CombatRuleResolver.Resolve(CombatState.Attack, CombatState.Attack).Summary} / {reachSummary}";
             LogCombatOutcome(CombatState.Attack, CombatState.Attack, clashSummary);
             opponent.LogCombatOutcome(CombatState.Attack, CombatState.Attack, clashSummary);
             RaiseCombatEvent(CombatEventKind.AttackClashed, opponent,
-                CombatState.Attack, CombatState.Attack, clashSummary);
+                CombatState.Attack, CombatState.Attack, clashSummary, 0f, playerReachRatio, enemyReachRatio);
             opponent.RaiseCombatEvent(CombatEventKind.AttackClashed, this,
-                CombatState.Attack, CombatState.Attack, clashSummary);
+                CombatState.Attack, CombatState.Attack, clashSummary, 0f, playerReachRatio, enemyReachRatio);
             return;
         }
 
         // 우세/열세 판정
-        float maxRange = 1f - midpointClashTolerance;
+        float maxRange = 1f - centerClashReachDiffTolerance;
         float advantageRatio = maxRange > 0f
-            ? Mathf.Clamp01((Mathf.Abs(extensionDiff) - midpointClashTolerance) / maxRange)
+            ? Mathf.Clamp01((Mathf.Abs(reachDiff) - centerClashReachDiffTolerance) / maxRange)
             : 1f;
 
-        CombatActorController winner = extensionDiff > 0f ? this : opponent;
-        CombatActorController loser  = extensionDiff > 0f ? opponent : this;
+        CombatActorController player = GetPlayerActor(opponent);
+        CombatActorController enemy = GetEnemyActor(opponent);
+        CombatActorController winner = reachDiff > 0f ? player : enemy;
+        CombatActorController loser = reachDiff > 0f ? enemy : player;
 
-        string winSummary  = $"공격 만남 우세 ({advantageRatio * 100f:F0}%)";
-        string lossSummary = $"공격 만남 열세 ({advantageRatio * 100f:F0}%)";
+        if (winner == null || loser == null)
+        {
+            winner = reachDiff > 0f ? this : opponent;
+            loser = reachDiff > 0f ? opponent : this;
+        }
+
+        string winSummary  = $"공격 만남 우세 / {reachSummary}";
+        string lossSummary = $"공격 만남 열세 / {reachSummary}";
 
         winner.LogCombatOutcome(CombatState.Attack, CombatState.Attack, winSummary);
         loser.LogCombatOutcome(CombatState.Attack, CombatState.Attack, lossSummary);
 
         winner.RaiseCombatEvent(CombatEventKind.AttackMeetingWin, loser,
-            CombatState.Attack, CombatState.Attack, winSummary, advantageRatio);
+            CombatState.Attack, CombatState.Attack, winSummary, advantageRatio, playerReachRatio, enemyReachRatio);
         loser.RaiseCombatEvent(CombatEventKind.AttackMeetingLoss, winner,
-            CombatState.Attack, CombatState.Attack, lossSummary, advantageRatio);
+            CombatState.Attack, CombatState.Attack, lossSummary, advantageRatio, playerReachRatio, enemyReachRatio);
     }
 
     bool TryResolveAttackMeetingByInitialMidpoint(CombatActorController opponent)
@@ -571,59 +591,78 @@ public class CombatActorController : MonoBehaviour
         if (Motion == null || opponent == null || opponent.Motion == null)
             return false;
 
-        Motion.MarkAttackClashed();
-        opponent.Motion.MarkAttackClashed();
         EnsureInitialAttackMeetingFrame(opponent);
 
         Vector3 contactPoint = (PalmContactWorldPosition + opponent.PalmContactWorldPosition) * 0.5f;
+        MarkAttackMeetingContact(opponent, contactPoint);
+
         float signedDistanceFromCenter = Vector3.Dot(
             contactPoint - initialAttackMeetingMidpoint,
             initialAttackMeetingPlayerToEnemyAxis);
         float signedOffsetNormalized = initialAttackMeetingHalfDistance > 0f
             ? signedDistanceFromCenter / initialAttackMeetingHalfDistance
             : 0f;
-        float absOffsetNormalized = Mathf.Abs(signedOffsetNormalized);
-        string positionSummary = BuildAttackMeetingPositionSummary(signedOffsetNormalized, contactPoint);
+        float playerReachRatio = Mathf.Clamp01((signedOffsetNormalized + 1f) * 0.5f);
+        float enemyReachRatio = 1f - playerReachRatio;
+        float reachDiff = playerReachRatio - enemyReachRatio;
+        string reachSummary = BuildAttackMeetingReachSummary(playerReachRatio, enemyReachRatio, contactPoint);
 
-        if (absOffsetNormalized <= midpointClashTolerance)
+        if (Mathf.Abs(reachDiff) <= centerClashReachDiffTolerance)
         {
-            string clashSummary = $"{CombatRuleResolver.Resolve(CombatState.Attack, CombatState.Attack).Summary} / {positionSummary}";
+            string clashSummary = $"{CombatRuleResolver.Resolve(CombatState.Attack, CombatState.Attack).Summary} / {reachSummary}";
             LogCombatOutcome(CombatState.Attack, CombatState.Attack, clashSummary);
             opponent.LogCombatOutcome(CombatState.Attack, CombatState.Attack, clashSummary);
             RaiseCombatEvent(CombatEventKind.AttackClashed, opponent,
-                CombatState.Attack, CombatState.Attack, clashSummary);
+                CombatState.Attack, CombatState.Attack, clashSummary, 0f, playerReachRatio, enemyReachRatio);
             opponent.RaiseCombatEvent(CombatEventKind.AttackClashed, this,
-                CombatState.Attack, CombatState.Attack, clashSummary);
+                CombatState.Attack, CombatState.Attack, clashSummary, 0f, playerReachRatio, enemyReachRatio);
             return true;
         }
 
-        float maxRange = 1f - midpointClashTolerance;
+        float maxRange = 1f - centerClashReachDiffTolerance;
         float advantageRatio = maxRange > 0f
-            ? Mathf.Clamp01((absOffsetNormalized - midpointClashTolerance) / maxRange)
+            ? Mathf.Clamp01((Mathf.Abs(reachDiff) - centerClashReachDiffTolerance) / maxRange)
             : 1f;
 
         CombatActorController player = GetPlayerActor(opponent);
         CombatActorController enemy = GetEnemyActor(opponent);
-        CombatActorController winner = signedOffsetNormalized > 0f ? player : enemy;
-        CombatActorController loser = signedOffsetNormalized > 0f ? enemy : player;
+        CombatActorController winner = reachDiff > 0f ? player : enemy;
+        CombatActorController loser = reachDiff > 0f ? enemy : player;
 
         if (winner == null || loser == null)
         {
-            winner = signedOffsetNormalized > 0f ? this : opponent;
-            loser = signedOffsetNormalized > 0f ? opponent : this;
+            winner = reachDiff > 0f ? this : opponent;
+            loser = reachDiff > 0f ? opponent : this;
         }
 
-        string winSummary = $"공격 만남 우세 ({advantageRatio * 100f:F0}%) / {positionSummary}";
-        string lossSummary = $"공격 만남 열세 ({advantageRatio * 100f:F0}%) / {positionSummary}";
+        string winSummary = $"공격 만남 우세 / {reachSummary}";
+        string lossSummary = $"공격 만남 열세 / {reachSummary}";
 
         winner.LogCombatOutcome(CombatState.Attack, CombatState.Attack, winSummary);
         loser.LogCombatOutcome(CombatState.Attack, CombatState.Attack, lossSummary);
 
         winner.RaiseCombatEvent(CombatEventKind.AttackMeetingWin, loser,
-            CombatState.Attack, CombatState.Attack, winSummary, advantageRatio);
+            CombatState.Attack, CombatState.Attack, winSummary, advantageRatio, playerReachRatio, enemyReachRatio);
         loser.RaiseCombatEvent(CombatEventKind.AttackMeetingLoss, winner,
-            CombatState.Attack, CombatState.Attack, lossSummary, advantageRatio);
+            CombatState.Attack, CombatState.Attack, lossSummary, advantageRatio, playerReachRatio, enemyReachRatio);
         return true;
+    }
+
+    Vector3 GetAttackMeetingContactPoint(CombatActorController opponent)
+    {
+        if (opponent == null)
+            return PalmContactWorldPosition;
+
+        return (PalmContactWorldPosition + opponent.PalmContactWorldPosition) * 0.5f;
+    }
+
+    void MarkAttackMeetingContact(CombatActorController opponent, Vector3 contactPoint)
+    {
+        if (Motion != null)
+            Motion.MarkAttackClashed(contactPoint);
+
+        if (opponent != null && opponent.Motion != null)
+            opponent.Motion.MarkAttackClashed(contactPoint);
     }
 
     CombatActorController GetPlayerActor(CombatActorController opponent)
@@ -648,19 +687,14 @@ public class CombatActorController : MonoBehaviour
         return null;
     }
 
-    string BuildAttackMeetingPositionSummary(float signedOffsetNormalized, Vector3 contactPoint)
+    string BuildAttackMeetingReachSummary(float playerReachRatio, float enemyReachRatio, Vector3 contactPoint)
     {
-        float percent = Mathf.Abs(signedOffsetNormalized) * 100f;
-        string side = Mathf.Abs(signedOffsetNormalized) <= 0.001f
-            ? "중앙"
-            : signedOffsetNormalized > 0f ? "적쪽" : "플레이어쪽";
-
-        return $"중앙 기준 {side} {percent:F0}% (충돌점 {contactPoint.x:F2}, {contactPoint.y:F2})";
+        return $"플레이어 {playerReachRatio * 100f:F0}% vs 적 {enemyReachRatio * 100f:F0}% (충돌점 {contactPoint.x:F2}, {contactPoint.y:F2})";
     }
 
     void RegisterDodgeSuccess()
     {
-        if (Motion == null || !Motion.IsDodging || dodgeSucceeded)
+        if (Motion == null || !IsDodgeCommitted || dodgeSucceeded)
             return;
 
         dodgeSucceeded = true;
@@ -709,7 +743,9 @@ public class CombatActorController : MonoBehaviour
         CombatState actorState,
         CombatState opponentState,
         string summary,
-        float advantageRatio = 0f)
+        float advantageRatio = 0f,
+        float playerReachRatio = 0f,
+        float enemyReachRatio = 0f)
     {
         CombatEventRaised?.Invoke(new CombatEventData(
             kind,
@@ -718,7 +754,9 @@ public class CombatActorController : MonoBehaviour
             actorState,
             opponentState,
             summary,
-            advantageRatio));
+            advantageRatio,
+            playerReachRatio,
+            enemyReachRatio));
     }
 
     void ResolveFeintOutcome()

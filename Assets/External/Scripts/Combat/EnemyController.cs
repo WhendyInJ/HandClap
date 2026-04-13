@@ -90,6 +90,8 @@ public class EnemyController : MonoBehaviour
     [SerializeField] private Transform attackStartEffectSpawnPoint;
     [SerializeField] private GameObject fakeAttackStartEffectPrefab;
     [SerializeField] private Transform fakeAttackStartEffectSpawnPoint;
+    [SerializeField] private GameObject attackMeetingDisadvantageEffectPrefab;
+    [SerializeField] private Transform attackMeetingDisadvantageEffectSpawnPoint;
     [SerializeField] private Transform actionEffectParentOverride;
     [SerializeField, Min(0f)] private float actionEffectRandomCircleRadius = 0.15f;
     [SerializeField] private bool useActionEffectSpawnPointRotation = true;
@@ -107,12 +109,11 @@ public class EnemyController : MonoBehaviour
     private CombatActorController actorController;
     private EnemyAIState currentAiState = EnemyAIState.Idle;
     private Coroutine aiStateRoutine;
-    private Coroutine manualTelegraphRoutine;
     private float actionCooldownTimer;
     private bool playerWasAttacking;
     private bool wasRoundCombatActive;
     private bool isAttackTelegraphActive;
-    private bool manualAiPause;
+    private GameObject activeAttackStartEffectInstance;
 
     // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -140,62 +141,8 @@ public class EnemyController : MonoBehaviour
         return started;
     }
 
-    public bool TryBasicAttackOnly()
-    {
-        bool started = actorController != null && actorController.TryBasicAttackOnly();
-        if (started)
-            SpawnActionStartEffect(false);
-
-        return started;
-    }
-
-    public bool TryTelegraphedBasicAttack()
-    {
-        if (manualTelegraphRoutine != null || !CanStartManualTelegraphAction())
-            return false;
-
-        manualTelegraphRoutine = StartCoroutine(RunManualTelegraphedBasicAttack());
-        return true;
-    }
-
-    public bool TryTelegraphedFeintAttack()
-    {
-        if (manualTelegraphRoutine != null || !CanStartManualTelegraphAction())
-            return false;
-
-        manualTelegraphRoutine = StartCoroutine(RunManualTelegraphedFeintAttack());
-        return true;
-    }
-
     public bool TryDodge()        => actorController != null && actorController.TryDodge();
     public bool TryBalanceDebug() => actorController != null && actorController.TryBalanceDebug();
-
-    public void SetManualAiPaused(bool paused)
-    {
-        if (manualAiPause == paused)
-            return;
-
-        manualAiPause = paused;
-
-        if (paused)
-        {
-            if (aiStateRoutine != null)
-                StopCoroutine(aiStateRoutine);
-
-            if (manualTelegraphRoutine != null)
-                StopCoroutine(manualTelegraphRoutine);
-
-            aiStateRoutine = null;
-            manualTelegraphRoutine = null;
-            SetAttackTelegraphActive(false);
-            SetAttackTelegraphFill(0f);
-            ReturnToIdle();
-            return;
-        }
-
-        if (actorController != null && actorController.RoundCombatActive)
-            HandleCombatResumed();
-    }
 
     bool TryFeintAttack()
     {
@@ -225,13 +172,17 @@ public class EnemyController : MonoBehaviour
 
     void OnEnable()
     {
+        EnsureActorController(true);
         TryAutoAssignAiPauseSources();
+        SubscribeCombatEvents();
         ResetActionCooldown();
         wasRoundCombatActive = actorController != null && actorController.RoundCombatActive;
     }
 
     void OnDisable()
     {
+        UnsubscribeCombatEvents();
+
         if (aiStateRoutine != null)
         {
             StopCoroutine(aiStateRoutine);
@@ -276,7 +227,7 @@ public class EnemyController : MonoBehaviour
         if (!enableAi || actorController == null || !isRoundCombatActive)
             return;
 
-        if (IsAiPaused())
+        if (IsAiPausedByMinigame())
         {
             playerWasAttacking = IsPlayerAttacking();
             return;
@@ -287,7 +238,12 @@ public class EnemyController : MonoBehaviour
         TickActionCooldown();
 
         if (currentAiState == EnemyAIState.Idle)
+        {
             UpdateIdleState();
+            return;
+        }
+
+        playerWasAttacking = IsPlayerAttacking();
     }
 
     // ── Idle State ─────────────────────────────────────────────────────────────
@@ -453,63 +409,6 @@ public class EnemyController : MonoBehaviour
         SetAttackTelegraphFill(0f);
     }
 
-    IEnumerator RunManualTelegraphedBasicAttack()
-    {
-        yield return RunAttackTelegraphManual(isFakeAttack: false);
-
-        manualTelegraphRoutine = null;
-
-        if (!CanStartManualTelegraphAction())
-            yield break;
-
-        TryBasicAttackOnly();
-    }
-
-    IEnumerator RunManualTelegraphedFeintAttack()
-    {
-        yield return RunAttackTelegraphManual(isFakeAttack: true);
-
-        manualTelegraphRoutine = null;
-
-        if (!CanStartManualTelegraphAction())
-            yield break;
-
-        TryFeintAttack();
-    }
-
-    IEnumerator RunAttackTelegraphManual(bool isFakeAttack)
-    {
-        float firstStop = Random.Range(attackTelegraphFirstStopMin, attackTelegraphFirstStopMax);
-
-        SetAttackTelegraphColorMode(isFakeAttack
-            ? SpriteFillColorMode.FakeAttack
-            : SpriteFillColorMode.Attack);
-        SetAttackTelegraphActive(true);
-        SetAttackTelegraphFill(0f);
-
-        yield return FillAttackTelegraphManual(0f, firstStop, attackTelegraphFirstFillDuration);
-        yield return WaitForSecondsManual(attackTelegraphFirstStopHoldDuration);
-
-        if (!CanContinueManualTelegraphAction())
-        {
-            SetAttackTelegraphActive(false);
-            SetAttackTelegraphFill(0f);
-            yield break;
-        }
-
-        if (isFakeAttack)
-        {
-            SetAttackTelegraphActive(false);
-            SetAttackTelegraphFill(0f);
-            yield break;
-        }
-
-        yield return FillAttackTelegraphManual(firstStop, 1f, attackTelegraphFinalFillDuration);
-
-        SetAttackTelegraphActive(false);
-        SetAttackTelegraphFill(0f);
-    }
-
     IEnumerator FillAttackTelegraph(float fromFill, float toFill, float duration)
     {
         fromFill = Mathf.Clamp01(fromFill);
@@ -524,7 +423,7 @@ public class EnemyController : MonoBehaviour
         float elapsed = 0f;
         while (elapsed < duration && IsAiActive())
         {
-            if (IsAiPaused())
+            if (IsAiPausedByMinigame())
             {
                 yield return WaitWhileAiPaused();
                 continue;
@@ -535,54 +434,6 @@ public class EnemyController : MonoBehaviour
             SetAttackTelegraphFill(Mathf.Lerp(fromFill, toFill, t));
             yield return null;
         }
-    }
-
-    IEnumerator FillAttackTelegraphManual(float fromFill, float toFill, float duration)
-    {
-        fromFill = Mathf.Clamp01(fromFill);
-        toFill = Mathf.Clamp01(toFill);
-
-        if (duration <= 0f)
-        {
-            SetAttackTelegraphFill(toFill);
-            yield break;
-        }
-
-        float elapsed = 0f;
-        while (elapsed < duration && CanContinueManualTelegraphAction())
-        {
-            elapsed += Time.deltaTime;
-            float t = Mathf.Clamp01(elapsed / duration);
-            SetAttackTelegraphFill(Mathf.Lerp(fromFill, toFill, t));
-            yield return null;
-        }
-    }
-
-    IEnumerator WaitForSecondsManual(float duration)
-    {
-        float elapsed = 0f;
-        duration = Mathf.Max(0f, duration);
-
-        while (elapsed < duration && CanContinueManualTelegraphAction())
-        {
-            elapsed += Time.deltaTime;
-            yield return null;
-        }
-    }
-
-    bool CanStartManualTelegraphAction()
-    {
-        return actorController != null
-            && actorController.RoundCombatActive
-            && !actorController.IsStaggered
-            && actorController.CanAttemptDecision;
-    }
-
-    bool CanContinueManualTelegraphAction()
-    {
-        return actorController != null
-            && actorController.RoundCombatActive
-            && !actorController.IsStaggered;
     }
 
     void SetAttackTelegraphActive(bool active)
@@ -624,8 +475,31 @@ public class EnemyController : MonoBehaviour
     {
         GameObject prefab = isFakeAttack ? fakeAttackStartEffectPrefab : attackStartEffectPrefab;
         Transform spawnPoint = isFakeAttack ? fakeAttackStartEffectSpawnPoint : attackStartEffectSpawnPoint;
+        GameObject instance = SpawnActionEffect(prefab, spawnPoint);
+
+        if (!isFakeAttack)
+            activeAttackStartEffectInstance = instance;
+    }
+
+    void SpawnAttackMeetingDisadvantageEffect()
+    {
+        if (activeAttackStartEffectInstance != null)
+        {
+            Destroy(activeAttackStartEffectInstance);
+            activeAttackStartEffectInstance = null;
+        }
+
+        Transform spawnPoint = attackMeetingDisadvantageEffectSpawnPoint != null
+            ? attackMeetingDisadvantageEffectSpawnPoint
+            : attackStartEffectSpawnPoint;
+
+        SpawnActionEffect(attackMeetingDisadvantageEffectPrefab, spawnPoint);
+    }
+
+    GameObject SpawnActionEffect(GameObject prefab, Transform spawnPoint)
+    {
         if (prefab == null || spawnPoint == null)
-            return;
+            return null;
 
         Vector2 randomOffset = Random.insideUnitCircle * actionEffectRandomCircleRadius;
         Vector3 spawnPosition = spawnPoint.position + new Vector3(randomOffset.x, randomOffset.y, 0f);
@@ -638,6 +512,8 @@ public class EnemyController : MonoBehaviour
 
         if (actionEffectDestroyAfterSeconds > 0f)
             Destroy(instance, actionEffectDestroyAfterSeconds);
+
+        return instance;
     }
 
     void PlayActionStartEffectAnimation(GameObject instance)
@@ -664,12 +540,12 @@ public class EnemyController : MonoBehaviour
         yield return new WaitUntil(() =>
             actorController == null ||
             !actorController.RoundCombatActive ||
-            (!IsAiPaused() && actorController.CanAttemptDecision));
+            (!IsAiPausedByMinigame() && actorController.CanAttemptDecision));
     }
 
     IEnumerator WaitWhileAiPaused()
     {
-        while (IsAiActive() && IsAiPaused())
+        while (IsAiActive() && IsAiPausedByMinigame())
             yield return null;
     }
 
@@ -680,7 +556,7 @@ public class EnemyController : MonoBehaviour
 
         while (elapsed < duration && IsAiActive())
         {
-            if (!IsAiPaused())
+            if (!IsAiPausedByMinigame())
                 elapsed += Time.deltaTime;
 
             yield return null;
@@ -689,7 +565,33 @@ public class EnemyController : MonoBehaviour
 
     void ReturnToIdle()
     {
+        playerWasAttacking = IsPlayerAttacking();
         SetState(EnemyAIState.Idle);
+    }
+
+    void HandleCombatEvent(CombatEventData eventData)
+    {
+        if (eventData.Kind != CombatEventKind.AttackMeetingLoss || eventData.Actor != actorController)
+            return;
+
+        SpawnAttackMeetingDisadvantageEffect();
+    }
+
+    void SubscribeCombatEvents()
+    {
+        if (actorController == null)
+            return;
+
+        actorController.CombatEventRaised -= HandleCombatEvent;
+        actorController.CombatEventRaised += HandleCombatEvent;
+    }
+
+    void UnsubscribeCombatEvents()
+    {
+        if (actorController == null)
+            return;
+
+        actorController.CombatEventRaised -= HandleCombatEvent;
     }
 
     void HandleCombatResumed()
@@ -742,11 +644,8 @@ public class EnemyController : MonoBehaviour
         targetController != null &&
         targetController.CurrentCombatState == CombatState.Attack;
 
-    bool IsAiPaused()
+    bool IsAiPausedByMinigame()
     {
-        if (manualAiPause)
-            return true;
-
         if (!pauseAiDuringMinigames)
             return false;
 

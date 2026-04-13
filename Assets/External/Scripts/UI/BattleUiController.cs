@@ -289,26 +289,26 @@ public class BattleUiController : MonoBehaviour
     /// </summary>
     void HandleAttackMeetingWin(CombatEventData eventData)
     {
-        if (eventData.Actor == playerController && eventData.Opponent == enemyController)
-        {
-            float baseDamage = playerStats != null
-                ? playerStats.CalculateDamageToEnemy(enemyStats)
-                : 0f;
-            float rawDamage = baseDamage * eventData.AdvantageRatio;
-            LogAttackMeetingDamage(eventData, playerDamage: 0f, enemyDamage: GetFinalEnemyDamage(rawDamage));
-            ApplyEnemyDamage(rawDamage);
+        if (!IsPlayerEnemyAttackMeeting(eventData))
             return;
-        }
 
-        if (eventData.Actor == enemyController && eventData.Opponent == playerController)
-        {
-            float baseDamage = enemyStats != null
-                ? enemyStats.CalculateDamageToPlayer(playerStats)
-                : 0f;
-            float damage = baseDamage * eventData.AdvantageRatio;
-            LogAttackMeetingDamage(eventData, playerDamage: damage, enemyDamage: 0f);
-            ApplyPlayerDamage(damage);
-        }
+        float playerReachRatio = eventData.PlayerReachRatio;
+        float enemyReachRatio = eventData.EnemyReachRatio;
+
+        float playerBaseDamage = playerStats != null
+            ? playerStats.CalculateDamageToEnemy(enemyStats)
+            : 0f;
+        float enemyBaseDamage = enemyStats != null
+            ? enemyStats.CalculateDamageToPlayer(playerStats)
+            : 0f;
+
+        float rawEnemyDamage = playerBaseDamage * playerReachRatio;
+        float playerDamage = enemyBaseDamage * enemyReachRatio;
+        float finalEnemyDamage = GetFinalEnemyDamage(rawEnemyDamage);
+
+        LogAttackMeetingDamage(eventData, playerDamage, finalEnemyDamage);
+        ApplyEnemyDamage(rawEnemyDamage);
+        ApplyPlayerDamage(playerDamage);
     }
 
     void HandleAttackMeetingClash(CombatEventData eventData)
@@ -317,6 +317,12 @@ public class BattleUiController : MonoBehaviour
             return;
 
         LogAttackMeetingDamage(eventData, playerDamage: 0f, enemyDamage: 0f);
+    }
+
+    bool IsPlayerEnemyAttackMeeting(CombatEventData eventData)
+    {
+        return (eventData.Actor == playerController && eventData.Opponent == enemyController)
+            || (eventData.Actor == enemyController && eventData.Opponent == playerController);
     }
 
     void HandleAttackHit(CombatEventData eventData)

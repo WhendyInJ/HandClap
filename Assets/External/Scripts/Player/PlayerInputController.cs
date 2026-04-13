@@ -6,6 +6,7 @@ public class PlayerInputController : MonoBehaviour
 {
     [SerializeField] private CombatActorController actorController;
     [SerializeField] private bool inputEnabled = true;
+    [SerializeField] private bool allowFakeAttack = true;
     [SerializeField] private KeyCode pushKey = KeyCode.Space;
     [SerializeField] private KeyCode dodgeKey = KeyCode.X;
     [SerializeField] private KeyCode balanceDebugKey = KeyCode.C;
@@ -26,7 +27,7 @@ public class PlayerInputController : MonoBehaviour
             return;
 
         if (Input.GetKeyDown(pushKey))
-            actorController.TryPush();
+            actorController.TryPush(allowFakeAttack);
 
         if (Input.GetKeyDown(dodgeKey))
             actorController.TryDodge();
@@ -38,6 +39,11 @@ public class PlayerInputController : MonoBehaviour
     public void SetInputEnabled(bool enabled)
     {
         inputEnabled = enabled;
+    }
+
+    public void SetFakeAttackEnabled(bool enabled)
+    {
+        allowFakeAttack = enabled;
     }
 
     public void SetKeys(KeyCode newPushKey, KeyCode newDodgeKey, KeyCode newBalanceKey)
