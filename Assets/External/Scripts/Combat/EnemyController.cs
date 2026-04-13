@@ -72,14 +72,33 @@ public class EnemyController : MonoBehaviour
     // 페인트 모션 타이밍은 CombatMotionController의 "Feint Attack" 헤더에서 조절
 
     [Header("Attack Telegraph")]
-    [SerializeField] private Vector2 attackTelegraphDelayRange = new Vector2(0.5f, 1.0f);
+    [Tooltip("Telegraph fill picks a random first-stop percent between these values. Fake attacks start when this point is reached.")]
+    [SerializeField, Range(0f, 1f)] private float attackTelegraphFirstStopMin = 0.35f;
+    [SerializeField, Range(0f, 1f)] private float attackTelegraphFirstStopMax = 0.65f;
+    [Tooltip("Seconds for the telegraph gauge to fill from 0 to the random first-stop percent.")]
+    [SerializeField, Min(0f)] private float attackTelegraphFirstFillDuration = 0.5f;
+    [Tooltip("Seconds for a real attack telegraph gauge to fill from the first-stop percent to 100%.")]
+    [SerializeField, Min(0f)] private float attackTelegraphFinalFillDuration = 0.3f;
     [SerializeField, Range(0f, 1f)] private float attackTelegraphDamageMultiplier = 0.5f;
     [SerializeField, HideInInspector] private SpriteFillController attackTelegraphFill;
     [SerializeField] private SpriteFillController[] attackTelegraphFills;
 
-    [Header("Post Telegraph Action Delay")]
-    [Tooltip("After the telegraph ends, the enemy waits a random time in this range before taking the selected action.")]
-    [SerializeField] private Vector2 postTelegraphActionDelayRange = new Vector2(0f, 0.25f);
+    [Header("Action Start Effects")]
+    [SerializeField] private GameObject attackStartEffectPrefab;
+    [SerializeField] private Transform attackStartEffectSpawnPoint;
+    [SerializeField] private GameObject fakeAttackStartEffectPrefab;
+    [SerializeField] private Transform fakeAttackStartEffectSpawnPoint;
+    [SerializeField] private Transform actionEffectParentOverride;
+    [SerializeField, Min(0f)] private float actionEffectRandomCircleRadius = 0.15f;
+    [SerializeField] private bool useActionEffectSpawnPointRotation = true;
+    [SerializeField, Min(0f)] private float actionEffectDestroyAfterSeconds = 1.5f;
+
+    [Header("Action Start Effect Animation")]
+    [SerializeField] private bool animateActionStartEffects = true;
+    [SerializeField, Min(0f)] private float actionEffectStartScaleMultiplier = 1.35f;
+    [SerializeField, Min(0f)] private float actionEffectShrinkScaleMultiplier = 0.82f;
+    [SerializeField, Min(0f)] private float actionEffectFadeInDuration = 0.045f;
+    [SerializeField, Min(0f)] private float actionEffectSettleDuration = 0.12f;
 
     // ── Runtime State ──────────────────────────────────────────────────────────
 
@@ -107,9 +126,27 @@ public class EnemyController : MonoBehaviour
     public bool IsAttackTelegraphActive => isAttackTelegraphActive;
     public float IncomingDamageMultiplier => isAttackTelegraphActive ? attackTelegraphDamageMultiplier : 1f;
 
-    public bool TryPush()         => actorController != null && actorController.TryPush();
+    public bool TryPush()
+    {
+        bool willFakeAttack = actorController != null && actorController.CanFakeAttack;
+        bool started = actorController != null && actorController.TryPush();
+        if (started)
+            SpawnActionStartEffect(willFakeAttack);
+
+        return started;
+    }
+
     public bool TryDodge()        => actorController != null && actorController.TryDodge();
     public bool TryBalanceDebug() => actorController != null && actorController.TryBalanceDebug();
+
+    bool TryFeintAttack()
+    {
+        bool started = actorController != null && actorController.TryFeintAttack();
+        if (started)
+            SpawnActionStartEffect(true);
+
+        return started;
+    }
 
     // ── Unity Lifecycle ────────────────────────────────────────────────────────
 
@@ -154,11 +191,17 @@ public class EnemyController : MonoBehaviour
         actionCooldownMin = Mathf.Max(0.1f, actionCooldownMin);
         actionCooldownMax = Mathf.Max(actionCooldownMin, actionCooldownMax);
         recoveryDelay     = Mathf.Max(0f, recoveryDelay);
-        attackTelegraphDelayRange.x = Mathf.Max(0f, attackTelegraphDelayRange.x);
-        attackTelegraphDelayRange.y = Mathf.Max(attackTelegraphDelayRange.x, attackTelegraphDelayRange.y);
+        attackTelegraphFirstStopMin = Mathf.Clamp01(attackTelegraphFirstStopMin);
+        attackTelegraphFirstStopMax = Mathf.Clamp(attackTelegraphFirstStopMax, attackTelegraphFirstStopMin, 1f);
+        attackTelegraphFirstFillDuration = Mathf.Max(0f, attackTelegraphFirstFillDuration);
+        attackTelegraphFinalFillDuration = Mathf.Max(0f, attackTelegraphFinalFillDuration);
         attackTelegraphDamageMultiplier = Mathf.Clamp01(attackTelegraphDamageMultiplier);
-        postTelegraphActionDelayRange.x = Mathf.Max(0f, postTelegraphActionDelayRange.x);
-        postTelegraphActionDelayRange.y = Mathf.Max(postTelegraphActionDelayRange.x, postTelegraphActionDelayRange.y);
+        actionEffectRandomCircleRadius = Mathf.Max(0f, actionEffectRandomCircleRadius);
+        actionEffectDestroyAfterSeconds = Mathf.Max(0f, actionEffectDestroyAfterSeconds);
+        actionEffectStartScaleMultiplier = Mathf.Max(0f, actionEffectStartScaleMultiplier);
+        actionEffectShrinkScaleMultiplier = Mathf.Max(0f, actionEffectShrinkScaleMultiplier);
+        actionEffectFadeInDuration = Mathf.Max(0f, actionEffectFadeInDuration);
+        actionEffectSettleDuration = Mathf.Max(0f, actionEffectSettleDuration);
     }
 
     void Update()
@@ -244,7 +287,7 @@ public class EnemyController : MonoBehaviour
         switch (reaction)
         {
             case EnemyReactionChoice.CounterAttack:
-                actorController.TryPush();
+                TryPush();
                 break;
             case EnemyReactionChoice.Dodge:
                 actorController.TryDodge();
@@ -276,8 +319,10 @@ public class EnemyController : MonoBehaviour
             yield break;
         }
 
-        LogAI("행동 예고", "Telegraph", CombatState.Attack);
-        yield return RunAttackTelegraph();
+        EnemyActingChoice action = RollAction();
+
+        LogAI("행동 예고", ActionLabel(action), ActionToCombatState(action));
+        yield return RunAttackTelegraph(action);
         yield return WaitWhileAiPaused();
 
         if (!IsAiActive())
@@ -286,15 +331,6 @@ public class EnemyController : MonoBehaviour
             yield break;
         }
 
-        yield return WaitForPostTelegraphActionDelay();
-
-        if (!IsAiActive())
-        {
-            AbortAiStateRoutine();
-            yield break;
-        }
-
-        EnemyActingChoice action = RollAction();
         LogAI("행동", ActionLabel(action), ActionToCombatState(action));
 
         ExecuteActing(action);
@@ -317,24 +353,52 @@ public class EnemyController : MonoBehaviour
     {
         if (action == EnemyActingChoice.FakeAttack)
         {
-            actorController.TryFeintAttack(); // 뻗기→회수 독립 페인트 모션
+            TryFeintAttack();
             return;
         }
 
-        actorController.TryPush();
+        TryPush();
     }
 
-    IEnumerator RunAttackTelegraph()
+    IEnumerator RunAttackTelegraph(EnemyActingChoice action)
     {
-        float duration = Random.Range(attackTelegraphDelayRange.x, attackTelegraphDelayRange.y);
-        if (duration <= 0f)
+        float firstStop = Random.Range(attackTelegraphFirstStopMin, attackTelegraphFirstStopMax);
+
+        SetAttackTelegraphActive(true);
+        SetAttackTelegraphFill(0f);
+
+        yield return FillAttackTelegraph(0f, firstStop, attackTelegraphFirstFillDuration);
+
+        if (!IsAiActive())
         {
+            SetAttackTelegraphActive(false);
             SetAttackTelegraphFill(0f);
             yield break;
         }
 
-        SetAttackTelegraphActive(true);
+        if (action == EnemyActingChoice.FakeAttack)
+        {
+            SetAttackTelegraphActive(false);
+            SetAttackTelegraphFill(0f);
+            yield break;
+        }
+
+        yield return FillAttackTelegraph(firstStop, 1f, attackTelegraphFinalFillDuration);
+
+        SetAttackTelegraphActive(false);
         SetAttackTelegraphFill(0f);
+    }
+
+    IEnumerator FillAttackTelegraph(float fromFill, float toFill, float duration)
+    {
+        fromFill = Mathf.Clamp01(fromFill);
+        toFill = Mathf.Clamp01(toFill);
+
+        if (duration <= 0f)
+        {
+            SetAttackTelegraphFill(toFill);
+            yield break;
+        }
 
         float elapsed = 0f;
         while (elapsed < duration && IsAiActive())
@@ -346,22 +410,10 @@ public class EnemyController : MonoBehaviour
             }
 
             elapsed += Time.deltaTime;
-            SetAttackTelegraphFill(Mathf.Clamp01(elapsed / duration));
+            float t = Mathf.Clamp01(elapsed / duration);
+            SetAttackTelegraphFill(Mathf.Lerp(fromFill, toFill, t));
             yield return null;
         }
-
-        SetAttackTelegraphActive(false);
-        SetAttackTelegraphFill(0f);
-    }
-
-    IEnumerator WaitForPostTelegraphActionDelay()
-    {
-        float duration = Random.Range(postTelegraphActionDelayRange.x, postTelegraphActionDelayRange.y);
-        if (duration <= 0f)
-            yield break;
-
-        LogAI("Action Delay", $"{duration:F2}s", CombatState.Neutral);
-        yield return WaitForSecondsWithAiPause(duration);
     }
 
     void SetAttackTelegraphActive(bool active)
@@ -382,6 +434,42 @@ public class EnemyController : MonoBehaviour
             if (attackTelegraphFills[i] != null)
                 attackTelegraphFills[i].SetFill(fill);
         }
+    }
+
+    void SpawnActionStartEffect(bool isFakeAttack)
+    {
+        GameObject prefab = isFakeAttack ? fakeAttackStartEffectPrefab : attackStartEffectPrefab;
+        Transform spawnPoint = isFakeAttack ? fakeAttackStartEffectSpawnPoint : attackStartEffectSpawnPoint;
+        if (prefab == null || spawnPoint == null)
+            return;
+
+        Vector2 randomOffset = Random.insideUnitCircle * actionEffectRandomCircleRadius;
+        Vector3 spawnPosition = spawnPoint.position + new Vector3(randomOffset.x, randomOffset.y, 0f);
+        Quaternion spawnRotation = useActionEffectSpawnPointRotation
+            ? spawnPoint.rotation
+            : prefab.transform.rotation;
+
+        GameObject instance = Instantiate(prefab, spawnPosition, spawnRotation, actionEffectParentOverride);
+        PlayActionStartEffectAnimation(instance);
+
+        if (actionEffectDestroyAfterSeconds > 0f)
+            Destroy(instance, actionEffectDestroyAfterSeconds);
+    }
+
+    void PlayActionStartEffectAnimation(GameObject instance)
+    {
+        if (!animateActionStartEffects || instance == null)
+            return;
+
+        HitEffectSpawnAnimator animator = instance.GetComponent<HitEffectSpawnAnimator>();
+        if (animator == null)
+            animator = instance.AddComponent<HitEffectSpawnAnimator>();
+
+        animator.Play(
+            actionEffectStartScaleMultiplier,
+            actionEffectShrinkScaleMultiplier,
+            actionEffectFadeInDuration,
+            actionEffectSettleDuration);
     }
 
     // ── Shared Helpers ─────────────────────────────────────────────────────────
@@ -568,7 +656,7 @@ public class EnemyController : MonoBehaviour
         if (!enableDebugInput || actorController == null)
             return;
 
-        if (Input.GetKeyDown(pushKey))    actorController.TryPush();
+        if (Input.GetKeyDown(pushKey))    TryPush();
         if (Input.GetKeyDown(dodgeKey))   actorController.TryDodge();
         if (Input.GetKeyDown(balanceKey)) actorController.TryBalanceDebug();
     }

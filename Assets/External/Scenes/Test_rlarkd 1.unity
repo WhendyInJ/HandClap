@@ -191,6 +191,37 @@ Transform:
   - {fileID: 1143337145}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &53693703
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 53693704}
+  m_Layer: 0
+  m_Name: GameObject
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &53693704
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 53693703}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.6, y: 0.8, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1244352426}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &55758049
 GameObject:
   m_ObjectHideFlags: 0
@@ -615,6 +646,7 @@ MonoBehaviour:
   destroyAfterSeconds: 1.5
   feintFailedMessage: "\uD5DB\uC9D3\uD568!"
   feintPunishedMessage: "\uC751\uC9D5\uB2F9\uD568!"
+  feintCounteredMessage: "\uC18D\uC558\uC74C!"
   dodgeFailedMessage: "\uD5DB\uC9D3\uD568!"
   attackDodgedMessage: "\uBE57\uB098\uAC10!"
 --- !u!4 &299773909
@@ -1209,6 +1241,37 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1577823064}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &378376894
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 378376895}
+  m_Layer: 0
+  m_Name: GameObject (1)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &378376895
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 378376894}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.38, y: -3.37, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1244352426}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &382015907
 GameObject:
@@ -3416,6 +3479,7 @@ MonoBehaviour:
   destroyAfterSeconds: 1.5
   feintFailedMessage: "\uD5DB\uC9D3\uD568!"
   feintPunishedMessage: "\uC751\uC9D5\uB2F9\uD568!"
+  feintCounteredMessage: "\uC18D\uC558\uC74C!"
   dodgeFailedMessage: "\uD5DB\uC9D3\uD568!"
   attackDodgedMessage: "\uBE57\uB098\uAC10!"
 --- !u!4 &971789343
@@ -3784,6 +3848,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a06b2cad95dbe404aa8fa5292793c42b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CombatActorController
+--- !u!4 &1244352426 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 5242545607161259126, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
+  m_PrefabInstance: {fileID: 1577823063}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1244855160
 GameObject:
   m_ObjectHideFlags: 0
@@ -4941,13 +5010,25 @@ PrefabInstance:
       value: 0.5
       objectReference: {fileID: 0}
     - target: {fileID: 4182225252941181897, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
+      propertyPath: attackStartEffectPrefab
+      value: 
+      objectReference: {fileID: 3427207400903529444, guid: ad930a7d5e981fd4e8f288cc7de47717, type: 3}
+    - target: {fileID: 4182225252941181897, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: reactCounterAttackWeight
       value: 0.2
       objectReference: {fileID: 0}
     - target: {fileID: 4182225252941181897, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
+      propertyPath: actionEffectParentOverride
+      value: 
+      objectReference: {fileID: 1244352426}
+    - target: {fileID: 4182225252941181897, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: clashTugMinigameController
       value: 
       objectReference: {fileID: 8401472483998982110}
+    - target: {fileID: 4182225252941181897, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
+      propertyPath: attackStartEffectSpawnPoint
+      value: 
+      objectReference: {fileID: 53693704}
     - target: {fileID: 4182225252941181897, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: attackTelegraphDelayRange.x
       value: 0.35
@@ -4955,6 +5036,22 @@ PrefabInstance:
     - target: {fileID: 4182225252941181897, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: attackTelegraphDelayRange.y
       value: 1.2
+      objectReference: {fileID: 0}
+    - target: {fileID: 4182225252941181897, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
+      propertyPath: attackTelegraphFirstStopMax
+      value: 0.8
+      objectReference: {fileID: 0}
+    - target: {fileID: 4182225252941181897, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
+      propertyPath: attackTelegraphFirstStopMin
+      value: 0.4
+      objectReference: {fileID: 0}
+    - target: {fileID: 4182225252941181897, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
+      propertyPath: fakeAttackStartEffectPrefab
+      value: 
+      objectReference: {fileID: 5675181113098534275, guid: 8f7f14c2b1b7ae84ea36d6bc2bf88be7, type: 3}
+    - target: {fileID: 4182225252941181897, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
+      propertyPath: actionEffectDestroyAfterSeconds
+      value: 0.6
       objectReference: {fileID: 0}
     - target: {fileID: 4182225252941181897, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: attackTelegraphDamageMultiplier
@@ -4965,12 +5062,24 @@ PrefabInstance:
       value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 4182225252941181897, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
+      propertyPath: fakeAttackStartEffectSpawnPoint
+      value: 
+      objectReference: {fileID: 378376895}
+    - target: {fileID: 4182225252941181897, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: postTelegraphActionDelayRange.x
       value: 0.2
       objectReference: {fileID: 0}
     - target: {fileID: 4182225252941181897, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: postTelegraphActionDelayRange.y
       value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 4182225252941181897, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
+      propertyPath: attackTelegraphFinalFillDuration
+      value: 0.1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4182225252941181897, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
+      propertyPath: attackTelegraphFirstFillDuration
+      value: 0.7
       objectReference: {fileID: 0}
     - target: {fileID: 4182225252941181897, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       propertyPath: 'attackTelegraphFills.Array.data[0]'
@@ -5095,6 +5204,12 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects:
+    - targetCorrespondingSourceObject: {fileID: 5242545607161259126, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 53693704}
+    - targetCorrespondingSourceObject: {fileID: 5242545607161259126, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 378376895}
     - targetCorrespondingSourceObject: {fileID: 7398159246008964271, guid: 23e265bfc288aad499d717a25d83ad90, type: 3}
       insertIndex: 1
       addedObject: {fileID: 1267534954}

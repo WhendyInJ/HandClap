@@ -19,6 +19,7 @@ public class PlayerCombatResultTextSpawner : MonoBehaviour
     [Header("Messages")]
     [SerializeField] private string feintFailedMessage = "헛짓함!";
     [SerializeField] private string feintPunishedMessage = "응징당함!";
+    [SerializeField] private string feintCounteredMessage = "낚였다!";
     [SerializeField] private string dodgeFailedMessage = "헛짓함!";
     [SerializeField] private string attackDodgedMessage = "빗나감!";
 
@@ -65,6 +66,11 @@ public class PlayerCombatResultTextSpawner : MonoBehaviour
             case CombatEventKind.FeintPunished:
                 if (eventData.Opponent == playerController)
                     message = feintPunishedMessage;
+                break;
+
+            case CombatEventKind.FeintCountered:
+                if (eventData.Opponent == playerController)
+                    message = feintCounteredMessage;
                 break;
 
             case CombatEventKind.DodgeFailed:
