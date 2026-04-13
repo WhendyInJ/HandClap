@@ -18,8 +18,8 @@ public class CombatActorController : MonoBehaviour
     [SerializeField] private bool enableCombatDebugLogs = true;
 
     [Header("Attack Meeting")]
-    [Tooltip("플레이어/적 뻗기 비율 차이가 이 값 이하이면 중앙충돌. 0.2 = 40:60~60:40")]
-    [SerializeField, Range(0f, 0.5f)] private float centerClashReachDiffTolerance = 0.2f;
+    [Tooltip("플레이어/적 뻗기 비율 차이가 이 값 이하이면 중앙충돌. 0.4 = 30:70~70:30")]
+    [SerializeField, Range(0f, 0.5f)] private float centerClashReachDiffTolerance = 0.4f;
     [Tooltip("공격 만남을 감지하는 손바닥 간 최대 거리(월드 단위)")]
     [SerializeField, Min(0f)] private float handMeetingRadius = 0.5f;
 

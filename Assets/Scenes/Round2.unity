@@ -693,11 +693,6 @@ MonoBehaviour:
   speedChangeSmoothness: 5
   randomizeStartPhase: 1
   startPhase: 0
---- !u!4 &268282980 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: 2983035367331816037, guid: 6103ca1899a30e24a8e01a1535ae3f82, type: 3}
-  m_PrefabInstance: {fileID: 438342679581519012}
-  m_PrefabAsset: {fileID: 0}
 --- !u!114 &276473225 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 3162043483256512939, guid: 3591442d994429b4ab83f7924b699f58, type: 3}
@@ -6977,11 +6972,6 @@ SpriteRenderer:
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
   m_SpriteSortPoint: 0
---- !u!1 &678613131 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 8616195575993318721, guid: bd135ab908d0f32419b4a4bd52013566, type: 3}
-  m_PrefabInstance: {fileID: 1041613767}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1 &678678025
 GameObject:
   m_ObjectHideFlags: 0
@@ -7290,6 +7280,37 @@ SpriteRenderer:
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
   m_SpriteSortPoint: 0
+--- !u!1 &736615452
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 736615453}
+  m_Layer: 0
+  m_Name: GameObject
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &736615453
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 736615452}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -3.09, y: -1.24, z: 0}
+  m_LocalScale: {x: 1.2, y: 1.2, z: 1.2}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &749213383
 GameObject:
   m_ObjectHideFlags: 0
@@ -8325,21 +8346,29 @@ PrefabInstance:
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 849524201262881423, guid: bd135ab908d0f32419b4a4bd52013566, type: 3}
-      propertyPath: maxHealth
-      value: 25
-      objectReference: {fileID: 0}
-    - target: {fileID: 849524201262881423, guid: bd135ab908d0f32419b4a4bd52013566, type: 3}
       propertyPath: healthFillImage
       value: 
       objectReference: {fileID: 29095834}
-    - target: {fileID: 2523954641836777170, guid: bd135ab908d0f32419b4a4bd52013566, type: 3}
-      propertyPath: opponentController
+    - target: {fileID: 2148270562600318642, guid: bd135ab908d0f32419b4a4bd52013566, type: 3}
+      propertyPath: fakeAttackColor.g
+      value: 0.3764706
+      objectReference: {fileID: 0}
+    - target: {fileID: 3056923286162506645, guid: bd135ab908d0f32419b4a4bd52013566, type: 3}
+      propertyPath: playerActor
       value: 
       objectReference: {fileID: 438342679581519013}
-    - target: {fileID: 4105551361417330405, guid: bd135ab908d0f32419b4a4bd52013566, type: 3}
-      propertyPath: m_SortingOrder
-      value: 9
-      objectReference: {fileID: 0}
+    - target: {fileID: 3056923286162506645, guid: bd135ab908d0f32419b4a4bd52013566, type: 3}
+      propertyPath: playerHeadTarget
+      value: 
+      objectReference: {fileID: 736615453}
+    - target: {fileID: 3056923286162506645, guid: bd135ab908d0f32419b4a4bd52013566, type: 3}
+      propertyPath: battleUiController
+      value: 
+      objectReference: {fileID: 2015795231}
+    - target: {fileID: 3056923286162506645, guid: bd135ab908d0f32419b4a4bd52013566, type: 3}
+      propertyPath: cameraShakeController
+      value: 
+      objectReference: {fileID: 781310192}
     - target: {fileID: 5551614250215697235, guid: bd135ab908d0f32419b4a4bd52013566, type: 3}
       propertyPath: m_LocalPosition.x
       value: 3.09
@@ -8381,18 +8410,6 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5974541682101705896, guid: bd135ab908d0f32419b4a4bd52013566, type: 3}
-      propertyPath: targetController
-      value: 
-      objectReference: {fileID: 438342679581519013}
-    - target: {fileID: 5974541682101705896, guid: bd135ab908d0f32419b4a4bd52013566, type: 3}
-      propertyPath: actionCooldownMax
-      value: 3
-      objectReference: {fileID: 0}
-    - target: {fileID: 5974541682101705896, guid: bd135ab908d0f32419b4a4bd52013566, type: 3}
-      propertyPath: actionCooldownMin
-      value: 1.5
-      objectReference: {fileID: 0}
-    - target: {fileID: 5974541682101705896, guid: bd135ab908d0f32419b4a4bd52013566, type: 3}
       propertyPath: battleUiController
       value: 
       objectReference: {fileID: 2015795231}
@@ -8400,9 +8417,9 @@ PrefabInstance:
       propertyPath: clashTugMinigameController
       value: 
       objectReference: {fileID: 8401472483998982110}
-    - target: {fileID: 5974541682101705896, guid: bd135ab908d0f32419b4a4bd52013566, type: 3}
-      propertyPath: attackTelegraphDamageMultiplier
-      value: 0.3
+    - target: {fileID: 6032156793187242885, guid: bd135ab908d0f32419b4a4bd52013566, type: 3}
+      propertyPath: fakeAttackColor.g
+      value: 0.3764706
       objectReference: {fileID: 0}
     - target: {fileID: 8616195575993318721, guid: bd135ab908d0f32419b4a4bd52013566, type: 3}
       propertyPath: m_Name
@@ -8411,10 +8428,7 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 8616195575993318721, guid: bd135ab908d0f32419b4a4bd52013566, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 1041613776}
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: bd135ab908d0f32419b4a4bd52013566, type: 3}
 --- !u!4 &1041613770 stripped
 Transform:
@@ -8426,7 +8440,7 @@ MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 2523954641836777170, guid: bd135ab908d0f32419b4a4bd52013566, type: 3}
   m_PrefabInstance: {fileID: 1041613767}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 678613131}
+  m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a06b2cad95dbe404aa8fa5292793c42b, type: 3}
@@ -8437,7 +8451,7 @@ MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 849524201262881423, guid: bd135ab908d0f32419b4a4bd52013566, type: 3}
   m_PrefabInstance: {fileID: 1041613767}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 678613131}
+  m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 903f19f2f1e882a47b4e5ee452f256f0, type: 3}
@@ -8448,72 +8462,12 @@ MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 8515802810473744620, guid: bd135ab908d0f32419b4a4bd52013566, type: 3}
   m_PrefabInstance: {fileID: 1041613767}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 678613131}
+  m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f54e7ccb598b13143a81907cff110c4f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CombatActorStats
---- !u!114 &1041613776
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 678613131}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4f46b19f04ff410589771ad0007aef77, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::StoneBossGimmickController
-  enemyController: {fileID: 1041613778}
-  enemyActor: {fileID: 1041613772}
-  playerActor: {fileID: 438342679581519013}
-  battleUiController: {fileID: 2015795231}
-  cameraShakeController: {fileID: 781310192}
-  jumpTarget: {fileID: 1041613779}
-  playerHeadTarget: {fileID: 268282980}
-  enableStoneGimmick: 1
-  autoStartOnCooldown: 1
-  autoStartCooldownMin: 6
-  autoStartCooldownMax: 10
-  waitUntilEnemyReady: 1
-  startOnlyWhenEnemyIdle: 1
-  jumpHeight: 1.5
-  jumpUpDuration: 0.25
-  airHangDuration: 0.1
-  landingDuration: 0.18
-  landingShakeDuration: 0.3
-  landingShakeStrength: 0.35
-  landingShakeFrequency: 55
-  stonePrefab: {fileID: 8663080765216317898, guid: 895bf3ea619e3724cb60ac03cc525ae5, type: 3}
-  stoneParentOverride: {fileID: 0}
-  stoneSpawnAfterLandingDelay: 0.05
-  stoneSpawnHeight: 8
-  stoneFallDuration: 0.5
-  stoneImpactRadius: 0.75
-  stoneDamage: 3
-  stoneDestroyDelay: 0.4
-  stoneRandomOffsetRange: {x: 0.2, y: 0}
-  dodgeDuringFallAvoidsStone: 1
-  leavingImpactRadiusAvoidsStone: 1
-  logStoneGimmick: 1
---- !u!114 &1041613778 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 5974541682101705896, guid: bd135ab908d0f32419b4a4bd52013566, type: 3}
-  m_PrefabInstance: {fileID: 1041613767}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 678613131}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 97ba0d94b30064a41880387ea299e9e3, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::EnemyController
---- !u!4 &1041613779 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: 5551614250215697235, guid: bd135ab908d0f32419b4a4bd52013566, type: 3}
-  m_PrefabInstance: {fileID: 1041613767}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1064588662
 GameObject:
   m_ObjectHideFlags: 0
@@ -8918,6 +8872,14 @@ PrefabInstance:
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_MethodName
       value: OnClickTitle
       objectReference: {fileID: 0}
+    - target: {fileID: 6416445130747356182, guid: f26c55696bcd1ed40abae79b41a9cfe8, type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Target
+      value: 
+      objectReference: {fileID: 1527273821}
+    - target: {fileID: 6416445130747356182, guid: f26c55696bcd1ed40abae79b41a9cfe8, type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_MethodName
+      value: OnClickRestart
+      objectReference: {fileID: 0}
     - target: {fileID: 6876137289812437230, guid: f26c55696bcd1ed40abae79b41a9cfe8, type: 3}
       propertyPath: m_Pivot.x
       value: 0.5
@@ -9014,6 +8976,11 @@ PrefabInstance:
 --- !u!224 &1216898728 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 6876137289812437230, guid: f26c55696bcd1ed40abae79b41a9cfe8, type: 3}
+  m_PrefabInstance: {fileID: 1216898727}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &1216898729 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 7308105543759429251, guid: f26c55696bcd1ed40abae79b41a9cfe8, type: 3}
   m_PrefabInstance: {fileID: 1216898727}
   m_PrefabAsset: {fileID: 0}
 --- !u!1 &1229557614
@@ -10035,11 +10002,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 381e52bbda67aa44e89565dd7f5d77f7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::InGameMenuManager
-  roundGameManager: {fileID: 0}
+  roundGameManager: {fileID: 1802868413}
   playerController: {fileID: 438342679581519013}
   playerHealth: {fileID: 438342679581519014}
-  battleUiController: {fileID: 0}
-  gameOverPanel: {fileID: 0}
+  battleUiController: {fileID: 2015795231}
+  gameOverPanel: {fileID: 1216898729}
   hideGameOverPanelOnAwake: 1
   pauseOnGameOver: 1
 --- !u!4 &1527273822
@@ -12014,13 +11981,13 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 1041613772}
     - target: {fileID: 1076647458612139662, guid: 6103ca1899a30e24a8e01a1535ae3f82, type: 3}
-      propertyPath: maxHealth
-      value: 15
-      objectReference: {fileID: 0}
-    - target: {fileID: 1076647458612139662, guid: 6103ca1899a30e24a8e01a1535ae3f82, type: 3}
       propertyPath: healthFillImage
       value: 
       objectReference: {fileID: 1096615996}
+    - target: {fileID: 1652342439873344390, guid: 6103ca1899a30e24a8e01a1535ae3f82, type: 3}
+      propertyPath: dodgeKey
+      value: 304
+      objectReference: {fileID: 0}
     - target: {fileID: 2123495892663902419, guid: 6103ca1899a30e24a8e01a1535ae3f82, type: 3}
       propertyPath: m_Name
       value: PlayerC
@@ -12518,3 +12485,4 @@ SceneRoots:
   - {fileID: 344267808}
   - {fileID: 1571021588}
   - {fileID: 1701387406}
+  - {fileID: 736615453}

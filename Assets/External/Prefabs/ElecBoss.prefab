@@ -254,7 +254,7 @@ MonoBehaviour:
   actorColorHex: '#FF5C5C'
   opponentController: {fileID: 0}
   enableCombatDebugLogs: 1
-  centerClashReachDiffTolerance: 0.2
+  centerClashReachDiffTolerance: 0.4
   handMeetingRadius: 0.5
   stats: {fileID: 9160258470875743839}
   health: {fileID: 8410901639081694569}

@@ -20,6 +20,9 @@ public class StoneBossGimmickController : MonoBehaviour
     [SerializeField, Min(0f)] private float autoStartCooldownMax = 8f;
     [SerializeField] private bool waitUntilEnemyReady = true;
     [SerializeField] private bool startOnlyWhenEnemyIdle = true;
+    [SerializeField] private bool reserveEnemyAiWhenCooldownReady = true;
+    [SerializeField] private bool preemptEnemyActionWhenReady = true;
+    [SerializeField] private bool ignoreEnemyActionCooldown = true;
 
     [Header("Jump")]
     [SerializeField, Min(0f)] private float jumpHeight = 1.5f;
@@ -113,12 +116,14 @@ public class StoneBossGimmickController : MonoBehaviour
         if (battleUiController != null && battleUiController.IsPlayerQteActive)
             return;
 
-        if (!IsEnemyStartWindowOpen())
+        cooldownTimer -= Time.deltaTime;
+        if (cooldownTimer > 0f)
             return;
 
-        cooldownTimer -= Time.deltaTime;
-        if (cooldownTimer <= 0f)
-            TryStartGimmick();
+        if (reserveEnemyAiWhenCooldownReady && ShouldReserveEnemyAiForGimmick())
+            SetEnemyAiPaused(true);
+
+        TryStartGimmick();
     }
 
     public bool TryStartGimmick()
@@ -143,8 +148,7 @@ public class StoneBossGimmickController : MonoBehaviour
 
         while (CanContinueGimmick()
             && waitUntilEnemyReady
-            && enemyActor != null
-            && !enemyActor.CanAttemptDecision)
+            && !IsEnemyFreeForGimmick())
         {
             yield return null;
         }
@@ -376,13 +380,62 @@ public class StoneBossGimmickController : MonoBehaviour
             && enemyController != null
             && (enemyController.CurrentAIState != EnemyAIState.Idle || enemyController.IsAttackTelegraphActive))
         {
-            return false;
+            if (!CanPreemptEnemyActionForGimmick())
+                return false;
         }
 
-        if (waitUntilEnemyReady && enemyActor != null && !enemyActor.CanAttemptDecision)
+        if (waitUntilEnemyReady && !IsEnemyFreeForGimmick())
             return false;
 
         return true;
+    }
+
+    bool ShouldReserveEnemyAiForGimmick()
+    {
+        if (enemyController == null)
+            return false;
+
+        if (!startOnlyWhenEnemyIdle)
+            return true;
+
+        if (enemyController.CurrentAIState == EnemyAIState.Idle && !enemyController.IsAttackTelegraphActive)
+            return true;
+
+        return CanPreemptEnemyActionForGimmick();
+    }
+
+    bool CanPreemptEnemyActionForGimmick()
+    {
+        return preemptEnemyActionWhenReady
+            && enemyController != null
+            && IsEnemyFreeForGimmick();
+    }
+
+    bool IsEnemyFreeForGimmick()
+    {
+        if (IsEnemyStaggered())
+            return false;
+
+        if (!waitUntilEnemyReady)
+            return true;
+
+        if (enemyActor == null || !enemyActor.RoundCombatActive)
+            return false;
+
+        if (!ignoreEnemyActionCooldown)
+            return enemyActor.CanAttemptDecision;
+
+        CombatMotionController motion = enemyActor.Motion;
+        return motion != null
+            && !motion.IsPushing
+            && !motion.IsDodging
+            && !motion.IsBalancing
+            && !motion.IsStaggered;
+    }
+
+    bool IsEnemyStaggered()
+    {
+        return enemyActor != null && enemyActor.IsStaggered;
     }
 
     bool CanContinueGimmick()
@@ -391,7 +444,8 @@ public class StoneBossGimmickController : MonoBehaviour
             && enemyActor != null
             && enemyActor.RoundCombatActive
             && enemyActor.Health != null
-            && enemyActor.Health.IsAlive;
+            && enemyActor.Health.IsAlive
+            && !enemyActor.IsStaggered;
     }
 
     Transform GetJumpTarget()

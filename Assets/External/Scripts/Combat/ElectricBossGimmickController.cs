@@ -1,5 +1,6 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 [DisallowMultipleComponent]
 public class ElectricBossGimmickController : MonoBehaviour
@@ -14,14 +15,11 @@ public class ElectricBossGimmickController : MonoBehaviour
     [Header("Gauge")]
     [SerializeField] private GameObject[] gaugeSlots;
     [SerializeField, Min(1)] private int requiredGaugeSlots = 4;
-    [SerializeField, Min(1)] private int attackMeetingsPerGaugeSlot = 3;
-    [SerializeField] private bool countEnemyAttackHitForGauge = true;
-    [SerializeField, Min(1)] private int gaugeLossOnPlayerDodgeSuccess = 1;
-    [SerializeField] private bool resetAttackMeetingCountOnGaugeLoss = true;
 
     [Header("Overcharge")]
-    [SerializeField, Min(1)] private int enemySuccessfulAttacksToArm = 3;
-    [SerializeField] private bool countEnemyAttackMeetingWinAsSuccess = true;
+    [FormerlySerializedAs("enemySuccessfulAttacksToArm")]
+    [FormerlySerializedAs("dodgeSuccessesAfterFullGaugeToArm")]
+    [SerializeField, Min(1)] private int playerDodgeSuccessesAfterFullGaugeToArm = 3;
 
     [Header("Gimmick Cast")]
     [SerializeField] private bool enableElectricGimmick = true;
@@ -51,8 +49,7 @@ public class ElectricBossGimmickController : MonoBehaviour
     [SerializeField] private bool logElectricGimmick = true;
 
     private int currentGaugeSlots;
-    private int attackMeetingCount;
-    private int enemySuccessfulAttackCountAfterFullGauge;
+    private int playerDodgeSuccessCountAfterFullGauge;
     private bool gimmickArmed;
     private bool isCastingGimmick;
     private bool enemyAiPausedByGimmick;
@@ -93,9 +90,7 @@ public class ElectricBossGimmickController : MonoBehaviour
     void OnValidate()
     {
         requiredGaugeSlots = Mathf.Max(1, requiredGaugeSlots);
-        attackMeetingsPerGaugeSlot = Mathf.Max(1, attackMeetingsPerGaugeSlot);
-        gaugeLossOnPlayerDodgeSuccess = Mathf.Max(1, gaugeLossOnPlayerDodgeSuccess);
-        enemySuccessfulAttacksToArm = Mathf.Max(1, enemySuccessfulAttacksToArm);
+        playerDodgeSuccessesAfterFullGaugeToArm = Mathf.Max(1, playerDodgeSuccessesAfterFullGaugeToArm);
         damageToPlayer = Mathf.Max(0f, damageToPlayer);
         castStartDelay = Mathf.Max(0f, castStartDelay);
         shakeDuration = Mathf.Max(0f, shakeDuration);
@@ -113,8 +108,7 @@ public class ElectricBossGimmickController : MonoBehaviour
     public void ResetElectricGauge()
     {
         currentGaugeSlots = 0;
-        attackMeetingCount = 0;
-        enemySuccessfulAttackCountAfterFullGauge = 0;
+        playerDodgeSuccessCountAfterFullGauge = 0;
         gimmickArmed = false;
         ApplyGaugeView();
     }
@@ -127,87 +121,35 @@ public class ElectricBossGimmickController : MonoBehaviour
         if (eventData.Actor != playerActor || eventData.Opponent != enemyActor)
             return;
 
-        if (IsAttackMeetingEvent(eventData.Kind))
-        {
-            HandleGaugeChargeProgress("Attack meeting");
-            return;
-        }
-
         if (eventData.Kind == CombatEventKind.DodgeSucceeded)
             HandlePlayerDodgeSucceeded();
     }
 
-    void HandleEnemyCombatEvent(CombatEventData eventData)
-    {
-        if (!enableElectricGimmick || enemyActor == null)
-            return;
-
-        if (!IsEnemySuccessfulAttackEvent(eventData))
-            return;
-
-        if (!IsGaugeFull() && eventData.Kind == CombatEventKind.AttackHit)
-        {
-            HandleEnemyAttackHitBeforeFullGauge();
-            return;
-        }
-
-        HandleEnemySuccessfulAttackAfterFullGauge();
-    }
-
-    void HandleEnemyAttackHitBeforeFullGauge()
-    {
-        if (!countEnemyAttackHitForGauge)
-            return;
-
-        HandleGaugeChargeProgress("Enemy attack hit");
-    }
-
-    void HandleGaugeChargeProgress(string reason)
-    {
-        if (IsGaugeFull() || gimmickArmed || isCastingGimmick)
-            return;
-
-        attackMeetingCount++;
-        LogElectricGimmick($"{reason} count: {attackMeetingCount}/{attackMeetingsPerGaugeSlot}");
-
-        if (attackMeetingCount < attackMeetingsPerGaugeSlot)
-            return;
-
-        attackMeetingCount = 0;
-        SetGaugeSlots(currentGaugeSlots + 1);
-        LogElectricGimmick($"Gauge charged: {currentGaugeSlots}/{GetFullGaugeSlotCount()}");
-    }
-
     void HandlePlayerDodgeSucceeded()
     {
-        if (isCastingGimmick || currentGaugeSlots <= 0)
+        if (isCastingGimmick || gimmickArmed)
             return;
 
-        SetGaugeSlots(currentGaugeSlots - gaugeLossOnPlayerDodgeSuccess);
-
-        if (resetAttackMeetingCountOnGaugeLoss)
-            attackMeetingCount = 0;
-
-        if (!IsGaugeFull())
+        if (IsGaugeFull())
         {
-            enemySuccessfulAttackCountAfterFullGauge = 0;
-            gimmickArmed = false;
-            CancelWaitingGimmick();
+            HandlePlayerDodgeSucceededAfterFullGauge();
+            return;
         }
 
-        LogElectricGimmick($"Player dodge success. Gauge: {currentGaugeSlots}/{GetFullGaugeSlotCount()}");
+        SetGaugeSlots(currentGaugeSlots + 1);
+        LogElectricGimmick($"Player dodge success. Gauge charged: {currentGaugeSlots}/{GetFullGaugeSlotCount()}");
     }
 
-    void HandleEnemySuccessfulAttackAfterFullGauge()
+    void HandlePlayerDodgeSucceededAfterFullGauge()
     {
         if (!IsGaugeFull() || gimmickArmed || isCastingGimmick)
             return;
 
-        enemySuccessfulAttackCountAfterFullGauge++;
+        playerDodgeSuccessCountAfterFullGauge++;
         LogElectricGimmick(
-            $"Enemy success after full gauge: {enemySuccessfulAttackCountAfterFullGauge}/{enemySuccessfulAttacksToArm}");
+            $"Player dodge success after full gauge: {playerDodgeSuccessCountAfterFullGauge}/{playerDodgeSuccessesAfterFullGaugeToArm}");
 
-        if (enemySuccessfulAttackCountAfterFullGauge < enemySuccessfulAttacksToArm)
+        if (playerDodgeSuccessCountAfterFullGauge < playerDodgeSuccessesAfterFullGaugeToArm)
             return;
 
         ArmGimmick();
@@ -292,25 +234,6 @@ public class ElectricBossGimmickController : MonoBehaviour
         gimmickArmed = false;
         SetEnemyAiPaused(false);
         LogElectricGimmick("Electric gimmick canceled before cast.");
-    }
-
-    bool IsAttackMeetingEvent(CombatEventKind kind)
-    {
-        return kind == CombatEventKind.AttackClashed
-            || kind == CombatEventKind.AttackMeetingWin
-            || kind == CombatEventKind.AttackMeetingLoss;
-    }
-
-    bool IsEnemySuccessfulAttackEvent(CombatEventData eventData)
-    {
-        if (eventData.Actor != enemyActor || eventData.Opponent != playerActor)
-            return false;
-
-        if (eventData.Kind == CombatEventKind.AttackHit)
-            return true;
-
-        return countEnemyAttackMeetingWinAsSuccess
-            && eventData.Kind == CombatEventKind.AttackMeetingWin;
     }
 
     bool IsCastWindowOpen()
@@ -462,21 +385,12 @@ public class ElectricBossGimmickController : MonoBehaviour
             playerActor.CombatEventRaised -= HandlePlayerCombatEvent;
             playerActor.CombatEventRaised += HandlePlayerCombatEvent;
         }
-
-        if (enemyActor != null && enemyActor != playerActor)
-        {
-            enemyActor.CombatEventRaised -= HandleEnemyCombatEvent;
-            enemyActor.CombatEventRaised += HandleEnemyCombatEvent;
-        }
     }
 
     void UnsubscribeEvents()
     {
         if (playerActor != null)
             playerActor.CombatEventRaised -= HandlePlayerCombatEvent;
-
-        if (enemyActor != null && enemyActor != playerActor)
-            enemyActor.CombatEventRaised -= HandleEnemyCombatEvent;
     }
 
     void TryAutoAssignReferences()

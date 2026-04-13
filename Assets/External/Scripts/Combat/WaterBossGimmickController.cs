@@ -20,6 +20,8 @@ public class WaterBossGimmickController : MonoBehaviour
     [FormerlySerializedAs("attackInterruptWindowDuration")]
     [SerializeField, Min(0f)] private float healTelegraphHoldDuration = 0.5f;
     [SerializeField, Min(0f)] private float delayBetweenHealAttempts = 0.15f;
+    [SerializeField, Min(0f)] private float gimmickCooldownDuration = 8f;
+    [SerializeField] private bool queueTriggerWhileCoolingDown = true;
     [SerializeField] private SpriteFillColorMode telegraphColorMode = SpriteFillColorMode.Gimmick;
 
     [Header("Heal Effect")]
@@ -44,6 +46,8 @@ public class WaterBossGimmickController : MonoBehaviour
     private bool wasAtOrBelowThreshold;
     private bool interruptWindowActive;
     private bool interruptRequested;
+    private bool triggerQueuedByCooldown;
+    private float nextAllowedGimmickTime;
     private Coroutine faceReactionRoutine;
     private Sprite faceSpriteBeforeReaction;
     private bool faceReactionActive;
@@ -79,6 +83,7 @@ public class WaterBossGimmickController : MonoBehaviour
 
         interruptWindowActive = false;
         interruptRequested = false;
+        triggerQueuedByCooldown = false;
 
         if (enemyController != null)
         {
@@ -96,10 +101,28 @@ public class WaterBossGimmickController : MonoBehaviour
         healTelegraphFillDuration = Mathf.Max(0f, healTelegraphFillDuration);
         healTelegraphHoldDuration = Mathf.Max(0f, healTelegraphHoldDuration);
         delayBetweenHealAttempts = Mathf.Max(0f, delayBetweenHealAttempts);
+        gimmickCooldownDuration = Mathf.Max(0f, gimmickCooldownDuration);
         healEffectRandomCircleRadius = Mathf.Max(0f, healEffectRandomCircleRadius);
         healEffectBobAmplitude = Mathf.Max(0f, healEffectBobAmplitude);
         healEffectBobSpeed = Mathf.Max(0f, healEffectBobSpeed);
         interruptedFaceDuration = Mathf.Max(0f, interruptedFaceDuration);
+    }
+
+    void Update()
+    {
+        if (!triggerQueuedByCooldown || gimmickRoutine != null)
+            return;
+
+        bool isAtOrBelowThreshold = IsAtOrBelowTriggerHealth();
+        if (!enableWaterGimmick || !isAtOrBelowThreshold)
+        {
+            triggerQueuedByCooldown = false;
+            wasAtOrBelowThreshold = isAtOrBelowThreshold;
+            return;
+        }
+
+        if (IsGimmickCooldownReady())
+            TryStartWaterHealGimmick();
     }
 
     void HandleEnemyHealthChanged(CombatHealth changedHealth)
@@ -109,7 +132,13 @@ public class WaterBossGimmickController : MonoBehaviour
 
         bool isAtOrBelowThreshold = IsAtOrBelowTriggerHealth();
         if (gimmickRoutine == null && !wasAtOrBelowThreshold && isAtOrBelowThreshold)
-            gimmickRoutine = StartCoroutine(RunWaterHealGimmick());
+        {
+            if (!TryStartWaterHealGimmick() && queueTriggerWhileCoolingDown && IsGimmickCooldownActive())
+            {
+                triggerQueuedByCooldown = true;
+                LogWaterGimmick($"Water gimmick queued by cooldown. Remaining: {GetGimmickCooldownRemaining():F2}s");
+            }
+        }
 
         if (gimmickRoutine == null)
             wasAtOrBelowThreshold = isAtOrBelowThreshold;
@@ -193,8 +222,19 @@ public class WaterBossGimmickController : MonoBehaviour
         }
 
         gimmickRoutine = null;
+        StartGimmickCooldown();
         wasAtOrBelowThreshold = IsAtOrBelowTriggerHealth();
         LogWaterGimmick("Water gimmick ended.");
+    }
+
+    bool TryStartWaterHealGimmick()
+    {
+        if (gimmickRoutine != null || !CanContinueGimmick() || !IsGimmickCooldownReady())
+            return false;
+
+        triggerQueuedByCooldown = false;
+        gimmickRoutine = StartCoroutine(RunWaterHealGimmick());
+        return true;
     }
 
     IEnumerator RunHealTelegraph()
@@ -344,6 +384,26 @@ public class WaterBossGimmickController : MonoBehaviour
     bool IsAtOrBelowTriggerHealth()
     {
         return enemyHealth != null && enemyHealth.Normalized <= triggerHealthNormalized;
+    }
+
+    bool IsGimmickCooldownReady()
+    {
+        return Time.time >= nextAllowedGimmickTime;
+    }
+
+    bool IsGimmickCooldownActive()
+    {
+        return !IsGimmickCooldownReady();
+    }
+
+    float GetGimmickCooldownRemaining()
+    {
+        return Mathf.Max(0f, nextAllowedGimmickTime - Time.time);
+    }
+
+    void StartGimmickCooldown()
+    {
+        nextAllowedGimmickTime = Time.time + gimmickCooldownDuration;
     }
 
     void SubscribeEvents()

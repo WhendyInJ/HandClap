@@ -377,7 +377,7 @@ GameObject:
   - component: {fileID: 1076647458612139662}
   - component: {fileID: 7136132076329805533}
   - component: {fileID: 87304854599978691}
-  - component: {fileID: 2420656013979037220}
+  - component: {fileID: 1652342439873344390}
   m_Layer: 0
   m_Name: PlayerC
   m_TagString: Player
@@ -430,10 +430,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 903f19f2f1e882a47b4e5ee452f256f0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CombatHealth
-  maxHealth: 10
+  maxHealth: 15
   resetOnAwake: 1
   currentHealth: 0
-  healthFill: {fileID: 0}
+  healthFill: {fileID: 4208237191036638035}
   healthFillImage: {fileID: 0}
 --- !u!114 &7136132076329805533
 MonoBehaviour:
@@ -450,7 +450,7 @@ MonoBehaviour:
   bodyPivot: {fileID: 4597249756276180381}
   handPivot: {fileID: 4798023246548885485}
   handVisual: {fileID: 1447684187523965889}
-  palmContactPoint: {fileID: 1478969730802228202}
+  palmContactPoint: {fileID: 867001738655664312}
   extendAttackToOpponentContactPoint: 1
   opponentContactReachOffset: 0
   idleBobAmplitude: 0.12
@@ -527,12 +527,12 @@ MonoBehaviour:
   actorColorHex: '#4AA3FF'
   opponentController: {fileID: 0}
   enableCombatDebugLogs: 1
-  centerClashReachDiffTolerance: 0.2
+  centerClashReachDiffTolerance: 0.4
   handMeetingRadius: 0.5
   stats: {fileID: 9077856227134217328}
   health: {fileID: 1076647458612139662}
   motion: {fileID: 7136132076329805533}
---- !u!114 &2420656013979037220
+--- !u!114 &1652342439873344390
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -549,7 +549,7 @@ MonoBehaviour:
   allowFakeAttack: 0
   pushKey: 32
   dodgeKey: 120
-  balanceDebugKey: 99
+  balanceDebugKey: 0
 --- !u!1 &2211348902321606340
 GameObject:
   m_ObjectHideFlags: 0
@@ -654,9 +654,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4617a7188f900344c9965ccae033bf08, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SpriteFillController
-  fill: 1
+  fill: 0
   attackColor: {r: 1, g: 1, b: 1, a: 1}
   fakeAttackColor: {r: 1, g: 0.35, b: 0.1, a: 1}
+  gimmickColor: {r: 0.1, g: 0.8, b: 1, a: 1}
   colorMode: 0
 --- !u!1 &2231661578737829523
 GameObject:
@@ -871,6 +872,7 @@ Transform:
   m_Children:
   - {fileID: 1447684187523965889}
   - {fileID: 1478969730802228202}
+  - {fileID: 867001738655664312}
   m_Father: {fileID: 4597249756276180381}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &3540412569103140182
@@ -1312,5 +1314,36 @@ Transform:
   m_Children:
   - {fileID: 7393816603355624703}
   - {fileID: 6886398054252145010}
+  m_Father: {fileID: 4798023246548885485}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &8568078306202052373
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 867001738655664312}
+  m_Layer: 0
+  m_Name: GameObject
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &867001738655664312
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8568078306202052373}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.274, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
   m_Father: {fileID: 4798023246548885485}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}

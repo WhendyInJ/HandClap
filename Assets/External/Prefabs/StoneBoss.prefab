@@ -79,7 +79,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 0
+  m_SortingOrder: 9
   m_MaskInteraction: 0
   m_Sprite: {fileID: 906388131340123023, guid: 01c94fa0c28d9024894a2bee82d0e57c, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -625,6 +625,7 @@ MonoBehaviour:
   fill: 1
   attackColor: {r: 1, g: 0, b: 0, a: 1}
   fakeAttackColor: {r: 1, g: 0, b: 0, a: 1}
+  gimmickColor: {r: 0.1, g: 0.8, b: 1, a: 1}
   colorMode: 0
 --- !u!1 &2656044672839357812
 GameObject:
@@ -766,6 +767,7 @@ MonoBehaviour:
   fill: 1
   attackColor: {r: 1, g: 0, b: 0, a: 1}
   fakeAttackColor: {r: 1, g: 0, b: 0, a: 1}
+  gimmickColor: {r: 0.1, g: 0.8, b: 1, a: 1}
   colorMode: 0
 --- !u!1 &3092316544831044176
 GameObject:
@@ -1053,9 +1055,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4617a7188f900344c9965ccae033bf08, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SpriteFillController
-  fill: 1
+  fill: 0
   attackColor: {r: 1, g: 1, b: 1, a: 1}
   fakeAttackColor: {r: 1, g: 0.35, b: 0.1, a: 1}
+  gimmickColor: {r: 0.1, g: 0.8, b: 1, a: 1}
   colorMode: 0
 --- !u!1 &3408039750677117360
 GameObject:
@@ -1477,6 +1480,7 @@ GameObject:
   - component: {fileID: 849524201262881423}
   - component: {fileID: 1430728443837400463}
   - component: {fileID: 2523954641836777170}
+  - component: {fileID: 3056923286162506645}
   m_Layer: 0
   m_Name: StoneBoss
   m_TagString: Untagged
@@ -1525,8 +1529,8 @@ MonoBehaviour:
   pauseAiDuringMinigames: 1
   battleUiController: {fileID: 0}
   clashTugMinigameController: {fileID: 0}
-  actionCooldownMin: 1.2
-  actionCooldownMax: 2.5
+  actionCooldownMin: 1.5
+  actionCooldownMax: 3
   recoveryDelay: 0.25
   reactCounterAttackWeight: 0.2
   reactStayNeutralWeight: 0.5
@@ -1538,7 +1542,7 @@ MonoBehaviour:
   attackTelegraphFirstFillDuration: 0.7
   attackTelegraphFirstStopHoldDuration: 0.35
   attackTelegraphFinalFillDuration: 0.3
-  attackTelegraphDamageMultiplier: 0.4
+  attackTelegraphDamageMultiplier: 0.3
   attackTelegraphFill: {fileID: 0}
   attackTelegraphFills:
   - {fileID: 2148270562600318642}
@@ -1587,10 +1591,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 903f19f2f1e882a47b4e5ee452f256f0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CombatHealth
-  maxHealth: 10
+  maxHealth: 25
   resetOnAwake: 1
   currentHealth: 0
-  healthFill: {fileID: 0}
+  healthFill: {fileID: 5211240105325796732}
   healthFillImage: {fileID: 0}
 --- !u!114 &1430728443837400463
 MonoBehaviour:
@@ -1684,11 +1688,58 @@ MonoBehaviour:
   actorColorHex: '#FF5C5C'
   opponentController: {fileID: 0}
   enableCombatDebugLogs: 1
-  centerClashReachDiffTolerance: 0.2
+  centerClashReachDiffTolerance: 0.4
   handMeetingRadius: 0.5
   stats: {fileID: 8515802810473744620}
   health: {fileID: 849524201262881423}
   motion: {fileID: 1430728443837400463}
+--- !u!114 &3056923286162506645
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8616195575993318721}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4f46b19f04ff410589771ad0007aef77, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StoneBossGimmickController
+  enemyController: {fileID: 5974541682101705896}
+  enemyActor: {fileID: 2523954641836777170}
+  playerActor: {fileID: 0}
+  battleUiController: {fileID: 0}
+  cameraShakeController: {fileID: 0}
+  jumpTarget: {fileID: 5551614250215697235}
+  playerHeadTarget: {fileID: 0}
+  enableStoneGimmick: 1
+  autoStartOnCooldown: 1
+  autoStartCooldownMin: 6
+  autoStartCooldownMax: 10
+  waitUntilEnemyReady: 1
+  startOnlyWhenEnemyIdle: 1
+  reserveEnemyAiWhenCooldownReady: 1
+  preemptEnemyActionWhenReady: 1
+  ignoreEnemyActionCooldown: 1
+  jumpHeight: 1.5
+  jumpUpDuration: 0.25
+  airHangDuration: 0.1
+  landingDuration: 0.18
+  landingShakeDuration: 0.3
+  landingShakeStrength: 0.35
+  landingShakeFrequency: 55
+  stonePrefab: {fileID: 8663080765216317898, guid: 895bf3ea619e3724cb60ac03cc525ae5, type: 3}
+  stoneParentOverride: {fileID: 0}
+  stoneSpawnAfterLandingDelay: 0.05
+  stoneSpawnHeight: 8
+  stoneFallDuration: 0.5
+  stoneImpactRadius: 0.75
+  stoneDamage: 3
+  stoneDestroyDelay: 0.4
+  stoneRandomOffsetRange: {x: 0.2, y: 0}
+  dodgeDuringFallAvoidsStone: 1
+  leavingImpactRadiusAvoidsStone: 1
+  logStoneGimmick: 1
 --- !u!1 &8631887585067945974
 GameObject:
   m_ObjectHideFlags: 0
