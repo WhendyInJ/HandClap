@@ -191,22 +191,6 @@ public class RoundGameManager : MonoBehaviour
     [SerializeField, Min(0f)] private float presentationPeakScaleMultiplier = 1.12f;
     [SerializeField] private bool pauseTimeScaleDuringStartPresentation = true;
     [SerializeField] private bool destroyPresentationPrefabAfterDisplay = true;
-    [Header("Start Presentation")]
-    [SerializeField] private bool playStartPresentation = true;
-    [SerializeField] private GameObject readyPrefab;
-    [SerializeField] private GameObject startPrefab;
-    [SerializeField] private Transform startPresentationParent;
-    [SerializeField] private Transform startPresentationSpawnPoint;
-    [SerializeField, Min(0f)] private float readyDisplayDuration = 0.75f;
-    [SerializeField, Min(0f)] private float startDisplayDuration = 0.75f;
-    [SerializeField, Min(0f)] private float readyStartGapDuration = 0.1f;
-    [SerializeField, Min(0f)] private float presentationPopInDuration = 0.14f;
-    [SerializeField, Min(0f)] private float presentationFadeOutDuration = 0.18f;
-    [SerializeField, Min(0f)] private float presentationStartScaleMultiplier = 0.8f;
-    [SerializeField, Min(0f)] private float presentationPeakScaleMultiplier = 1.12f;
-    [SerializeField] private bool pauseTimeScaleDuringStartPresentation = true;
-    [SerializeField] private bool destroyPresentationPrefabAfterDisplay = true;
-
 
     public event Action<int, float> RoundStarted;
     public event Action<float, float> RoundTimeChanged;
