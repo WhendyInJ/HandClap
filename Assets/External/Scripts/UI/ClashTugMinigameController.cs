@@ -34,6 +34,7 @@ public class ClashTugMinigameController : MonoBehaviour
 
     [Header("References")]
     [SerializeField] private BattleUiController battleUiController;
+    [SerializeField] private RoundGameManager roundGameManager;
     [SerializeField] private CombatActorController playerController;
     [SerializeField] private CombatActorController enemyController;
     [SerializeField] private CombatActorStats playerStats;
@@ -70,12 +71,14 @@ public class ClashTugMinigameController : MonoBehaviour
 
     void Reset()
     {
+        TryAutoAssignRoundGameManager();
         TryAutoAssignReferences();
         BindUiChildrenIfNeeded();
     }
 
     void Awake()
     {
+        TryAutoAssignRoundGameManager();
         TryAutoAssignReferences();
         ApplyValidation();
         BindUiChildrenIfNeeded();
@@ -85,6 +88,7 @@ public class ClashTugMinigameController : MonoBehaviour
 
     void OnEnable()
     {
+        TryAutoAssignRoundGameManager();
         TryAutoAssignReferences();
         SubscribeCombatEvents();
         BindUiChildrenIfNeeded();
@@ -277,8 +281,23 @@ public class ClashTugMinigameController : MonoBehaviour
             return;
         }
 
+        if (ShouldSuppressCoachTutorialDamage())
+            return;
+
         if (enemyController != null && enemyController.Health != null)
             enemyController.Health.ApplyDamage(totalDamage * enemyDamageRatio * GetEnemyIncomingDamageMultiplier());
+    }
+
+    void TryAutoAssignRoundGameManager()
+    {
+        if (roundGameManager == null)
+            roundGameManager = FindFirstObjectByType<RoundGameManager>();
+    }
+
+    bool ShouldSuppressCoachTutorialDamage()
+    {
+        TryAutoAssignRoundGameManager();
+        return roundGameManager != null && roundGameManager.IsCoachTutorialDamageSuppressed;
     }
 
     float GetEnemyIncomingDamageMultiplier()

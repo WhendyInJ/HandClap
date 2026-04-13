@@ -18,6 +18,7 @@ public class BattleUiController : MonoBehaviour
     }
 
     [Header("Combat Targets")]
+    [SerializeField] private RoundGameManager roundGameManager;
     [SerializeField] private CombatActorController playerController;
     [SerializeField] private CombatActorController enemyController;
     [SerializeField] private CombatActorStats playerStats;
@@ -66,6 +67,7 @@ public class BattleUiController : MonoBehaviour
 
     void Reset()
     {
+        TryAutoAssignRoundGameManager();
         TryAutoAssignControllers();
         TryAutoAssignCombatComponents();
         TryAutoAssignMinigames();
@@ -74,6 +76,7 @@ public class BattleUiController : MonoBehaviour
 
     void Awake()
     {
+        TryAutoAssignRoundGameManager();
         TryAutoAssignControllers();
         TryAutoAssignCombatComponents();
         TryAutoAssignMinigames();
@@ -86,6 +89,7 @@ public class BattleUiController : MonoBehaviour
 
     void OnEnable()
     {
+        TryAutoAssignRoundGameManager();
         TryAutoAssignControllers();
         TryAutoAssignCombatComponents();
         TryAutoAssignMinigames();
@@ -123,7 +127,7 @@ public class BattleUiController : MonoBehaviour
 
     public void ApplyEnemyDamage(float damage)
     {
-        if (damage <= 0f || enemyHealth == null)
+        if (damage <= 0f || enemyHealth == null || ShouldSuppressCoachTutorialDamage())
             return;
 
         enemyHealth.ApplyDamage(damage * GetEnemyIncomingDamageMultiplier());
@@ -348,7 +352,7 @@ public class BattleUiController : MonoBehaviour
 
     public void ApplyPlayerDamage(float damage)
     {
-        if (damage <= 0f)
+        if (damage <= 0f || ShouldSuppressCoachTutorialDamage())
             return;
 
         ApplyPlayerCombatHealthDamage(damage);
@@ -560,6 +564,12 @@ public class BattleUiController : MonoBehaviour
             playerController = enemyController.OpponentController;
     }
 
+    void TryAutoAssignRoundGameManager()
+    {
+        if (roundGameManager == null)
+            roundGameManager = FindFirstObjectByType<RoundGameManager>();
+    }
+
     CombatActorController FindPlayerController()
     {
         PlayerController[] players = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
@@ -702,10 +712,16 @@ public class BattleUiController : MonoBehaviour
     void ApplyPlayerCombatHealthDamage(float damage)
     {
         CombatHealth playerHealth = GetPlayerHealth();
-        if (damage <= 0f || playerHealth == null)
+        if (damage <= 0f || playerHealth == null || ShouldSuppressCoachTutorialDamage())
             return;
 
         playerHealth.ApplyDamage(damage);
+    }
+
+    bool ShouldSuppressCoachTutorialDamage()
+    {
+        TryAutoAssignRoundGameManager();
+        return roundGameManager != null && roundGameManager.IsCoachTutorialDamageSuppressed;
     }
 
     void UpdateEnemyHealthUi()
