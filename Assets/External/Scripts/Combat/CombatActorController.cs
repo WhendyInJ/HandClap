@@ -8,7 +8,6 @@ using UnityEngine;
 public class CombatActorController : MonoBehaviour
 {
     public event Action<CombatEventData> CombatEventRaised;
-    public event Action BasicAttackStarted;
 
     [Header("Combat Debug")]
     [SerializeField] private string actorName;
@@ -76,16 +75,7 @@ public class CombatActorController : MonoBehaviour
         if (allowFakeAttack && TryFakeAttack())
             return true;
 
-        return TryBasicAttackOnly();
-    }
-
-    public bool TryBasicAttackOnly()
-    {
-        bool started = QueueDecision(CombatState.Attack);
-        if (started)
-            BasicAttackStarted?.Invoke();
-
-        return started;
+        return QueueDecision(CombatState.Attack);
     }
 
     public bool TryFakeAttack()
@@ -783,14 +773,7 @@ public class CombatActorController : MonoBehaviour
             return;
         }
 
-        const string summary = "Fake no effect";
-        LogCombatOutcome(CombatState.Attack, opponentState, summary);
-        RaiseCombatEvent(
-            CombatEventKind.FeintFailed,
-            opponentController,
-            CombatState.Attack,
-            opponentState,
-            summary);
+        LogCombatOutcome(CombatState.Attack, opponentState, "Fake no effect");
     }
 
     void MarkFeintPunished()
