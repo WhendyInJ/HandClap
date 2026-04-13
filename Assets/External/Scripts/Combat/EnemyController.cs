@@ -77,6 +77,8 @@ public class EnemyController : MonoBehaviour
     [SerializeField, Range(0f, 1f)] private float attackTelegraphFirstStopMax = 0.65f;
     [Tooltip("Seconds for the telegraph gauge to fill from 0 to the random first-stop percent.")]
     [SerializeField, Min(0f)] private float attackTelegraphFirstFillDuration = 0.5f;
+    [Tooltip("Seconds to pause at the random first-stop percent before fake/real action continues.")]
+    [SerializeField, Min(0f)] private float attackTelegraphFirstStopHoldDuration = 0.2f;
     [Tooltip("Seconds for a real attack telegraph gauge to fill from the first-stop percent to 100%.")]
     [SerializeField, Min(0f)] private float attackTelegraphFinalFillDuration = 0.3f;
     [SerializeField, Range(0f, 1f)] private float attackTelegraphDamageMultiplier = 0.5f;
@@ -194,6 +196,7 @@ public class EnemyController : MonoBehaviour
         attackTelegraphFirstStopMin = Mathf.Clamp01(attackTelegraphFirstStopMin);
         attackTelegraphFirstStopMax = Mathf.Clamp(attackTelegraphFirstStopMax, attackTelegraphFirstStopMin, 1f);
         attackTelegraphFirstFillDuration = Mathf.Max(0f, attackTelegraphFirstFillDuration);
+        attackTelegraphFirstStopHoldDuration = Mathf.Max(0f, attackTelegraphFirstStopHoldDuration);
         attackTelegraphFinalFillDuration = Mathf.Max(0f, attackTelegraphFinalFillDuration);
         attackTelegraphDamageMultiplier = Mathf.Clamp01(attackTelegraphDamageMultiplier);
         actionEffectRandomCircleRadius = Mathf.Max(0f, actionEffectRandomCircleRadius);
@@ -372,6 +375,7 @@ public class EnemyController : MonoBehaviour
         SetAttackTelegraphFill(0f);
 
         yield return FillAttackTelegraph(0f, firstStop, attackTelegraphFirstFillDuration);
+        yield return WaitForSecondsWithAiPause(attackTelegraphFirstStopHoldDuration);
 
         if (!IsAiActive())
         {
