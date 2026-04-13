@@ -114,6 +114,8 @@ public class EnemyController : MonoBehaviour
     private bool playerWasAttacking;
     private bool wasRoundCombatActive;
     private bool isAttackTelegraphActive;
+    private bool telegraphAffectsIncomingDamage;
+    private bool gimmickSuppressIncomingDamage;
     private bool manualAiPause;
     private GameObject activeAttackStartEffectInstance;
 
@@ -131,7 +133,9 @@ public class EnemyController : MonoBehaviour
     public CombatActorController TargetController => targetController;
     public EnemyAIState CurrentAIState => currentAiState;
     public bool IsAttackTelegraphActive => isAttackTelegraphActive;
-    public float IncomingDamageMultiplier => isAttackTelegraphActive ? attackTelegraphDamageMultiplier : 1f;
+    public float IncomingDamageMultiplier => gimmickSuppressIncomingDamage
+        ? 0f
+        : telegraphAffectsIncomingDamage ? attackTelegraphDamageMultiplier : 1f;
 
     public bool TryPush()
     {
@@ -182,6 +186,9 @@ public class EnemyController : MonoBehaviour
 
         if (paused)
         {
+            if (actorController != null)
+                actorController.ClearQueuedDecision();
+
             if (aiStateRoutine != null)
                 StopCoroutine(aiStateRoutine);
 
@@ -198,6 +205,23 @@ public class EnemyController : MonoBehaviour
 
         if (actorController != null && actorController.RoundCombatActive)
             HandleCombatResumed();
+    }
+
+    public void SetGimmickTelegraphActive(bool active, float fill = 0f, SpriteFillColorMode colorMode = SpriteFillColorMode.Attack)
+    {
+        SetAttackTelegraphColorMode(colorMode);
+        SetAttackTelegraphActive(active, affectsIncomingDamage: false);
+        SetAttackTelegraphFill(fill);
+    }
+
+    public void SetGimmickTelegraphFill(float fill)
+    {
+        SetAttackTelegraphFill(fill);
+    }
+
+    public void SetGimmickIncomingDamageSuppressed(bool suppressed)
+    {
+        gimmickSuppressIncomingDamage = suppressed;
     }
 
     bool TryFeintAttack()
@@ -588,9 +612,10 @@ public class EnemyController : MonoBehaviour
         }
     }
 
-    void SetAttackTelegraphActive(bool active)
+    void SetAttackTelegraphActive(bool active, bool affectsIncomingDamage = true)
     {
         isAttackTelegraphActive = active;
+        telegraphAffectsIncomingDamage = active && affectsIncomingDamage;
     }
 
     void SetAttackTelegraphFill(float fill)

@@ -1,13 +1,22 @@
 fileFormatVersion: 2
-guid: 537571ee6d6ef0e429f2e4bb337774e8
+guid: 45e2a9b730fa06341ad8e5f84e8c6997
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -163532602377701999
-    second: WaterHeal_Effect_0
+      213: -8241544454065014354
+    second: WaterFace_Stun_0
   - first:
-      213: -934456156218503685
-    second: WaterHeal_Effect_1
+      213: 8821797374325298121
+    second: WaterFace_Stun_1
+  - first:
+      213: -1657067698992066563
+    second: WaterFace_Stun_2
+  - first:
+      213: 479215799524988535
+    second: WaterFace_Stun_3
+  - first:
+      213: -1653488489396990084
+    second: WaterFace_Stun_4
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -103,13 +112,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: WaterHeal_Effect_0
+      name: WaterFace_Stun_0
       rect:
         serializedVersion: 2
         x: 3
-        y: 50
-        width: 167
-        height: 76
+        y: 77
+        width: 30
+        height: 17
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -118,20 +127,20 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 195f41ee6f30bbdf0800000000000000
-      internalID: -163532602377701999
+      spriteID: ea93dde0cf620ad80800000000000000
+      internalID: -8241544454065014354
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: WaterHeal_Effect_1
+      name: WaterFace_Stun_1
       rect:
         serializedVersion: 2
-        x: 70
-        y: 0
-        width: 230
-        height: 73
+        x: 64
+        y: 77
+        width: 23
+        height: 15
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -140,8 +149,74 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: bfd4b6ea3152803f0800000000000000
-      internalID: -934456156218503685
+      spriteID: 9c31229d8f15d6a70800000000000000
+      internalID: 8821797374325298121
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: WaterFace_Stun_2
+      rect:
+        serializedVersion: 2
+        x: 84
+        y: 83
+        width: 11
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: dffcdc015b9e009e0800000000000000
+      internalID: -1657067698992066563
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: WaterFace_Stun_3
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 13
+        width: 44
+        height: 55
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 776117d0b3486a600800000000000000
+      internalID: 479215799524988535
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: WaterFace_Stun_4
+      rect:
+        serializedVersion: 2
+        x: 32
+        y: 0
+        width: 67
+        height: 71
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c7f8b4dbaf0ad09e0800000000000000
+      internalID: -1653488489396990084
       vertices: []
       indices: 
       edges: []
@@ -160,8 +235,11 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      WaterHeal_Effect_0: -163532602377701999
-      WaterHeal_Effect_1: -934456156218503685
+      WaterFace_Stun_0: -8241544454065014354
+      WaterFace_Stun_1: 8821797374325298121
+      WaterFace_Stun_2: -1657067698992066563
+      WaterFace_Stun_3: 479215799524988535
+      WaterFace_Stun_4: -1653488489396990084
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

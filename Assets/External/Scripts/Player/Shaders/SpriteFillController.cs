@@ -5,6 +5,8 @@ public enum SpriteFillColorMode
 {
     Attack,
     FakeAttack,
+
+    Gimmick
 }
 
 [RequireComponent(typeof(SpriteRenderer))]
@@ -16,6 +18,7 @@ public class SpriteFillController : MonoBehaviour
     [Range(0,1)] public float fill = 1f;
     [FormerlySerializedAs("color")] [SerializeField] private Color attackColor = Color.white;
     [SerializeField] private Color fakeAttackColor = new Color(1f, 0.35f, 0.1f, 1f);
+    [SerializeField] private Color gimmickColor = new Color(0.1f, 0.8f, 1f, 1f);
     [SerializeField] private SpriteFillColorMode colorMode = SpriteFillColorMode.Attack;
 
     private SpriteRenderer spriteRenderer;
@@ -80,8 +83,11 @@ public class SpriteFillController : MonoBehaviour
 
     Color GetCurrentColor()
     {
-        return colorMode == SpriteFillColorMode.FakeAttack
-            ? fakeAttackColor
-            : attackColor;
+        return colorMode switch
+        {
+            SpriteFillColorMode.FakeAttack => fakeAttackColor,
+            SpriteFillColorMode.Gimmick => gimmickColor,
+            _ => attackColor,
+        };
     }
 }

@@ -56,7 +56,7 @@
         "temp/": true,
         "Temp/": true
     },
-    "dotnet.defaultSolution": "HandClap.sln",
+    "dotnet.defaultSolution": "HandClap.slnx",
     "dotrush.roslyn.projectOrSolutionFiles": [
         "c:\\Users\\jungle\\Documents\\GitHub\\HandClap\\HandClap.sln",
         "c:\\Users\\jungle\\Documents\\GitHub\\HandClap\\HandClap.slnx",
