@@ -10,4 +10,11 @@ public class TitleManager : MonoBehaviour
         // You can load the next scene or start the game logic here
         SceneManager.LoadScene(sceneName);
     }
+
+    public void OnClickExitButton()
+    {
+        // Exit the game
+        Debug.Log("Exit Button Clicked");
+        Application.Quit();
+    }
 }

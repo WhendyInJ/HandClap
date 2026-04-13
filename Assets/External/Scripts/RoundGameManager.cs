@@ -3,6 +3,7 @@ using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
@@ -175,6 +176,37 @@ public class RoundGameManager : MonoBehaviour
 
     [Tooltip("다음 씬 진입 후 페이드인 시간(초).")]
     [SerializeField, Min(0f)] private float coachTutorialSceneFadeInSeconds = 1.2f;
+    [Header("Start Presentation")]
+    [SerializeField] private bool playStartPresentation = true;
+    [SerializeField] private GameObject readyPrefab;
+    [SerializeField] private GameObject startPrefab;
+    [SerializeField] private Transform startPresentationParent;
+    [SerializeField] private Transform startPresentationSpawnPoint;
+    [SerializeField, Min(0f)] private float readyDisplayDuration = 0.75f;
+    [SerializeField, Min(0f)] private float startDisplayDuration = 0.75f;
+    [SerializeField, Min(0f)] private float readyStartGapDuration = 0.1f;
+    [SerializeField, Min(0f)] private float presentationPopInDuration = 0.14f;
+    [SerializeField, Min(0f)] private float presentationFadeOutDuration = 0.18f;
+    [SerializeField, Min(0f)] private float presentationStartScaleMultiplier = 0.8f;
+    [SerializeField, Min(0f)] private float presentationPeakScaleMultiplier = 1.12f;
+    [SerializeField] private bool pauseTimeScaleDuringStartPresentation = true;
+    [SerializeField] private bool destroyPresentationPrefabAfterDisplay = true;
+    [Header("Start Presentation")]
+    [SerializeField] private bool playStartPresentation = true;
+    [SerializeField] private GameObject readyPrefab;
+    [SerializeField] private GameObject startPrefab;
+    [SerializeField] private Transform startPresentationParent;
+    [SerializeField] private Transform startPresentationSpawnPoint;
+    [SerializeField, Min(0f)] private float readyDisplayDuration = 0.75f;
+    [SerializeField, Min(0f)] private float startDisplayDuration = 0.75f;
+    [SerializeField, Min(0f)] private float readyStartGapDuration = 0.1f;
+    [SerializeField, Min(0f)] private float presentationPopInDuration = 0.14f;
+    [SerializeField, Min(0f)] private float presentationFadeOutDuration = 0.18f;
+    [SerializeField, Min(0f)] private float presentationStartScaleMultiplier = 0.8f;
+    [SerializeField, Min(0f)] private float presentationPeakScaleMultiplier = 1.12f;
+    [SerializeField] private bool pauseTimeScaleDuringStartPresentation = true;
+    [SerializeField] private bool destroyPresentationPrefabAfterDisplay = true;
+
 
     public event Action<int, float> RoundStarted;
     public event Action<float, float> RoundTimeChanged;
@@ -198,6 +230,7 @@ public class RoundGameManager : MonoBehaviour
     Coroutine rerollFlowRoutine;
     Coroutine roundSettleRoutine;
     Coroutine tutorialCoachRoutine;
+    Coroutine startPresentationRoutine;
 
     EnemyController enemyAiController;
     float settlingRemainingDisplay;
@@ -215,6 +248,8 @@ public class RoundGameManager : MonoBehaviour
     int coachTutorialProgressVisibleSlotCount;
     int coachTutorialProgressFilledVisualCount;
     float coachTutorialSkipHoldTimer;
+    float timeScaleBeforeStartPresentation = 1f;
+    bool startPresentationChangedTimeScale;
 
     void Reset()
     {
@@ -244,6 +279,17 @@ public class RoundGameManager : MonoBehaviour
         if (slotController != null)
             slotController.SetKeyboardInputEnabled(false);
 
+        if (ShouldPlayStartPresentation())
+        {
+            startPresentationRoutine = StartCoroutine(RunStartPresentationThenBeginGame());
+            return;
+        }
+
+        BeginInitialGameFlow();
+    }
+
+    void BeginInitialGameFlow()
+    {
         if (runCoachTutorialBeforeFirstRound && coachTutorialSteps != null && coachTutorialSteps.Length > 0)
             tutorialCoachRoutine = StartCoroutine(RunCoachTutorialThenRoundOne());
         else
@@ -257,6 +303,7 @@ public class RoundGameManager : MonoBehaviour
 
     void OnDisable()
     {
+        StopStartPresentationRoutine();
         StopTutorialCoachRoutine();
 
         if (rerollFlowRoutine != null)
@@ -273,6 +320,239 @@ public class RoundGameManager : MonoBehaviour
     void OnValidate()
     {
         ApplyValidation();
+    }
+
+    bool ShouldPlayStartPresentation()
+    {
+        return playStartPresentation && (readyPrefab != null || startPrefab != null);
+    }
+
+    IEnumerator RunStartPresentationThenBeginGame()
+    {
+        ApplyRoundCombatActive(false);
+        ApplyBetweenRoundIdleMotion(false);
+
+        if (slotController != null)
+            slotController.SetKeyboardInputEnabled(false);
+
+        if (pauseTimeScaleDuringStartPresentation && !startPresentationChangedTimeScale)
+        {
+            timeScaleBeforeStartPresentation = Time.timeScale;
+            startPresentationChangedTimeScale = true;
+            Time.timeScale = 0f;
+        }
+
+        yield return ShowStartPresentationPrefab(readyPrefab, readyDisplayDuration);
+        yield return WaitStartPresentationSeconds(readyStartGapDuration);
+        yield return ShowStartPresentationPrefab(startPrefab, startDisplayDuration);
+
+        RestoreStartPresentationTimeScale();
+        startPresentationRoutine = null;
+        BeginInitialGameFlow();
+    }
+
+    void StopStartPresentationRoutine()
+    {
+        if (startPresentationRoutine != null)
+        {
+            StopCoroutine(startPresentationRoutine);
+            startPresentationRoutine = null;
+        }
+
+        RestoreStartPresentationTimeScale();
+    }
+
+    IEnumerator ShowStartPresentationPrefab(GameObject prefab, float displayDuration)
+    {
+        if (prefab == null)
+            yield break;
+
+        GameObject instance = InstantiateStartPresentationPrefab(prefab);
+        if (instance == null)
+            yield break;
+
+        yield return AnimateStartPresentationInstance(instance, displayDuration);
+
+        if (destroyPresentationPrefabAfterDisplay && instance != null)
+            Destroy(instance);
+    }
+
+    GameObject InstantiateStartPresentationPrefab(GameObject prefab)
+    {
+        Transform parent = startPresentationParent;
+        GameObject instance;
+
+        if (parent != null)
+        {
+            instance = Instantiate(prefab, parent);
+
+            if (startPresentationSpawnPoint != null)
+            {
+                instance.transform.SetPositionAndRotation(
+                    startPresentationSpawnPoint.position,
+                    startPresentationSpawnPoint.rotation);
+            }
+            else if (instance.transform is RectTransform rectTransform)
+            {
+                rectTransform.anchoredPosition = Vector2.zero;
+            }
+            else
+            {
+                instance.transform.localPosition = Vector3.zero;
+            }
+
+            return instance;
+        }
+
+        Vector3 position = startPresentationSpawnPoint != null
+            ? startPresentationSpawnPoint.position
+            : Vector3.zero;
+        Quaternion rotation = startPresentationSpawnPoint != null
+            ? startPresentationSpawnPoint.rotation
+            : prefab.transform.rotation;
+
+        return Instantiate(prefab, position, rotation);
+    }
+
+    IEnumerator AnimateStartPresentationInstance(GameObject instance, float displayDuration)
+    {
+        if (instance == null)
+            yield break;
+
+        SpriteRenderer[] spriteRenderers = instance.GetComponentsInChildren<SpriteRenderer>(true);
+        Graphic[] graphics = instance.GetComponentsInChildren<Graphic>(true);
+        Color[] spriteColors = CaptureSpriteColors(spriteRenderers);
+        Color[] graphicColors = CaptureGraphicColors(graphics);
+        Vector3 baseScale = instance.transform.localScale;
+        Vector3 startScale = baseScale * presentationStartScaleMultiplier;
+        Vector3 peakScale = baseScale * presentationPeakScaleMultiplier;
+        Vector3 exitScale = baseScale * Mathf.Max(1f, presentationPeakScaleMultiplier);
+
+        float popDuration = Mathf.Min(presentationPopInDuration, displayDuration);
+        float fadeDuration = Mathf.Min(presentationFadeOutDuration, Mathf.Max(0f, displayDuration - popDuration));
+        float holdDuration = Mathf.Max(0f, displayDuration - popDuration - fadeDuration);
+
+        instance.transform.localScale = startScale;
+        SetPresentationAlpha(spriteRenderers, graphics, spriteColors, graphicColors, 0f);
+
+        float elapsed = 0f;
+        while (elapsed < popDuration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / Mathf.Max(0.0001f, popDuration));
+            instance.transform.localScale = Vector3.LerpUnclamped(startScale, peakScale, EaseOutBack(t));
+            SetPresentationAlpha(spriteRenderers, graphics, spriteColors, graphicColors, t);
+            yield return null;
+        }
+
+        instance.transform.localScale = peakScale;
+        SetPresentationAlpha(spriteRenderers, graphics, spriteColors, graphicColors, 1f);
+
+        elapsed = 0f;
+        float settleDuration = Mathf.Min(0.12f, holdDuration);
+        while (elapsed < settleDuration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / Mathf.Max(0.0001f, settleDuration));
+            instance.transform.localScale = Vector3.LerpUnclamped(peakScale, baseScale, EaseOutCubic(t));
+            yield return null;
+        }
+
+        instance.transform.localScale = baseScale;
+        yield return WaitStartPresentationSeconds(Mathf.Max(0f, holdDuration - settleDuration));
+
+        elapsed = 0f;
+        while (elapsed < fadeDuration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / Mathf.Max(0.0001f, fadeDuration));
+            instance.transform.localScale = Vector3.LerpUnclamped(baseScale, exitScale, EaseOutCubic(t));
+            SetPresentationAlpha(spriteRenderers, graphics, spriteColors, graphicColors, 1f - t);
+            yield return null;
+        }
+    }
+
+    IEnumerator WaitStartPresentationSeconds(float duration)
+    {
+        float elapsed = 0f;
+        duration = Mathf.Max(0f, duration);
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            yield return null;
+        }
+    }
+
+    void RestoreStartPresentationTimeScale()
+    {
+        if (!startPresentationChangedTimeScale)
+            return;
+
+        Time.timeScale = timeScaleBeforeStartPresentation;
+        startPresentationChangedTimeScale = false;
+    }
+
+    static Color[] CaptureSpriteColors(SpriteRenderer[] spriteRenderers)
+    {
+        Color[] colors = new Color[spriteRenderers.Length];
+        for (int i = 0; i < spriteRenderers.Length; i++)
+            colors[i] = spriteRenderers[i] != null ? spriteRenderers[i].color : Color.white;
+
+        return colors;
+    }
+
+    static Color[] CaptureGraphicColors(Graphic[] graphics)
+    {
+        Color[] colors = new Color[graphics.Length];
+        for (int i = 0; i < graphics.Length; i++)
+            colors[i] = graphics[i] != null ? graphics[i].color : Color.white;
+
+        return colors;
+    }
+
+    static void SetPresentationAlpha(
+        SpriteRenderer[] spriteRenderers,
+        Graphic[] graphics,
+        Color[] spriteColors,
+        Color[] graphicColors,
+        float normalizedAlpha)
+    {
+        normalizedAlpha = Mathf.Clamp01(normalizedAlpha);
+
+        for (int i = 0; i < spriteRenderers.Length; i++)
+        {
+            if (spriteRenderers[i] == null)
+                continue;
+
+            Color color = spriteColors[i];
+            color.a *= normalizedAlpha;
+            spriteRenderers[i].color = color;
+        }
+
+        for (int i = 0; i < graphics.Length; i++)
+        {
+            if (graphics[i] == null)
+                continue;
+
+            Color color = graphicColors[i];
+            color.a *= normalizedAlpha;
+            graphics[i].color = color;
+        }
+    }
+
+    static float EaseOutCubic(float t)
+    {
+        t = Mathf.Clamp01(t);
+        return 1f - Mathf.Pow(1f - t, 3f);
+    }
+
+    static float EaseOutBack(float t)
+    {
+        t = Mathf.Clamp01(t);
+        const float c1 = 1.70158f;
+        const float c3 = c1 + 1f;
+        return 1f + c3 * Mathf.Pow(t - 1f, 3f) + c1 * Mathf.Pow(t - 1f, 2f);
     }
 
     void Update()
@@ -864,6 +1144,13 @@ public class RoundGameManager : MonoBehaviour
         rerollAutoCloseDelay = Mathf.Max(0f, rerollAutoCloseDelay);
         nextRoundDelayAfterSlotClose = Mathf.Max(0f, nextRoundDelayAfterSlotClose);
         failGaugeRecoveryBetweenRounds = Mathf.Clamp01(failGaugeRecoveryBetweenRounds);
+        readyDisplayDuration = Mathf.Max(0f, readyDisplayDuration);
+        startDisplayDuration = Mathf.Max(0f, startDisplayDuration);
+        readyStartGapDuration = Mathf.Max(0f, readyStartGapDuration);
+        presentationPopInDuration = Mathf.Max(0f, presentationPopInDuration);
+        presentationFadeOutDuration = Mathf.Max(0f, presentationFadeOutDuration);
+        presentationStartScaleMultiplier = Mathf.Max(0f, presentationStartScaleMultiplier);
+        presentationPeakScaleMultiplier = Mathf.Max(0f, presentationPeakScaleMultiplier);
 
         if (coachTutorialSteps == null)
             return;
