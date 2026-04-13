@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.UI;
 
 [DisallowMultipleComponent]
 public class CombatHealth : MonoBehaviour
@@ -8,6 +9,7 @@ public class CombatHealth : MonoBehaviour
     [SerializeField] private bool resetOnAwake = true;
     [SerializeField, Min(0f)] private float currentHealth;
     [SerializeField] private SpriteFillController healthFill;
+    [SerializeField] private Image healthFillImage;
 
     private bool initialized;
     private bool fillOverrideActive;
@@ -123,6 +125,12 @@ public class CombatHealth : MonoBehaviour
         UpdateHealthFill();
     }
 
+    public void SetHealthFillImage(Image fillImage)
+    {
+        healthFillImage = fillImage;
+        UpdateHealthFill();
+    }
+
     public void SetFillOverride(float normalized)
     {
         fillOverrideActive = true;
@@ -138,10 +146,15 @@ public class CombatHealth : MonoBehaviour
 
     void UpdateHealthFill()
     {
+        float normalizedFill = fillOverrideActive
+            ? fillOverrideNormalized
+            : GetNormalizedWithoutInitializing();
+
         if (healthFill != null)
-            healthFill.SetFill(fillOverrideActive
-                ? fillOverrideNormalized
-                : GetNormalizedWithoutInitializing());
+            healthFill.SetFill(normalizedFill);
+
+        if (healthFillImage != null)
+            healthFillImage.fillAmount = normalizedFill;
     }
 
     float GetNormalizedWithoutInitializing()
